@@ -1,8 +1,8 @@
 # reading
 Sandbox for sanantonioreadingcamps related stuff
 
-main menu link: https://j4yu22.github.io/reading/
+main menu link: https://j4yu22.github.io/readingsoundgame/
 
-tts test link: https://j4yu22.github.io/reading/ttsTest/
+tts test link: https://j4yu22.github.io/readingsoundgame/ttsTest/
 
-example link: https://j4yu22.github.io/reading/example/
+example link: https://j4yu22.github.io/readingsoundgame/example/
