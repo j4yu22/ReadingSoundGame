@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TTS / STT Test</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <main class="app">
+    <h1>TTS / STT Test</h1>
+
+    <section class="panel">
+      <label for="ttsInput">Type a word or phrase, then press Enter</label>
+      <input
+        id="ttsInput"
+        type="text"
+        placeholder="Type here and press Enter"
+        autocomplete="off"
+      />
+        <label for="voiceSelect">Voice</label>
+        <select id="voiceSelect"></select>
+
+        <label for="volumeSlider">Voice Volume</label>
+        <div class="sliderContainer">
+        <span id="volumeValue">1.00</span>
+        <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1">
+        </div>
+
+        <label for="rateSlider">Voice Rate</label>
+        <div class="sliderContainer">
+        <span id="rateValue">0.92</span>
+        <input id="rateSlider" type="range" min="0.5" max="2" step="0.01" value="0.92">
+        </div>
+
+        <label for="pitchSlider">Voice Pitch</label>
+        <div class="sliderContainer">
+        <span id="pitchValue">1.05</span>
+        <input id="pitchSlider" type="range" min="0" max="2" step="0.01" value="1.05">
+        </div>
+        
+        <label for="voicePreviewText">Preview Text</label>
+        <input
+        id="voicePreviewText"
+        type="text"
+        placeholder="Type preview text here"
+        value="Hello, this is a voice preview."
+        autocomplete="off"
+        />
+
+        <button id="previewVoiceBtn" type="button">Preview Voice</button>
+    </section>
+
+    <section class="panel">
+      <label for="sttOutput">Live microphone subtitles</label>
+      <div id="sttOutput" class="subtitles">Press Start Listening</div>
+      <button id="listenBtn" type="button">Start Listening</button>
+    </section>
+
+    <p id="status" class="status">Status: idle</p>
+  </main>
+
+  <script src="script.js"></script>
+</body>
+</html>

@@ -1,0 +1,68 @@
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  background: #0f172a;
+  color: white;
+}
+
+/* center everything */
+.container {
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 40px;
+}
+
+/* play button */
+#playBtn {
+  font-size: 2rem;
+  padding: 30px 50px;
+  border: none;
+  border-radius: 12px;
+  background: #2563eb;
+  color: white;
+  cursor: pointer;
+  transition: transform 0.1s, background 0.15s;
+}
+
+#playBtn:hover {
+  background: #3b82f6;
+}
+
+#playBtn:active {
+  transform: scale(0.95);
+}
+
+#debugText {
+  min-height: 60px;
+  padding: 16px;
+  width: 300px;
+  text-align: center;
+
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 8px;
+
+  color: #e5e7eb;
+  font-size: 1.1rem;
+  white-space: pre-wrap;
+}
+
+/* slider */
+.sliderGroup {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.sliderGroup label {
+  font-size: 0.9rem;
+  color: #9ca3af;
+}
+
+#volumeSlider {
+  width: 200px;
+}
