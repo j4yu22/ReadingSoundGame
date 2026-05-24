@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Arthur Voice Chat</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="arthur.css">
+</head>
+<body>
+  <main class="shell">
+    <section class="stage" aria-label="Conversation">
+      <header class="topbar">
+        <div>
+          <p class="eyebrow">Arthur</p>
+          <h1>Voice Conversation</h1>
+        </div>
+        <div class="status-group" aria-live="polite">
+          <span id="proxyStatus" class="status-pill">Proxy</span>
+          <span id="whisperStatus" class="status-pill">Whisper</span>
+          <span id="ttsStatus" class="status-pill">TTS</span>
+        </div>
+      </header>
+
+      <div id="subtitle" class="subtitle" aria-live="polite">
+        Press Record.
+      </div>
+
+      <div class="controls" aria-label="Voice controls">
+        <button id="recordBtn" class="record-button" type="button">
+          <span id="recordDot" class="record-dot"></span>
+          <span id="recordLabel">Record</span>
+        </button>
+        <button id="resetBtn" class="secondary-button" type="button">Reset</button>
+      </div>
+
+      <section class="transcript-panel" aria-label="Transcript">
+        <div class="panel-header">
+          <h2>Transcript</h2>
+          <span id="turnCount">0 turns</span>
+        </div>
+        <div id="transcript" class="transcript" role="log" aria-live="polite"></div>
+      </section>
+    </section>
+
+    <aside class="settings" aria-label="Voice settings">
+      <h2>Voice</h2>
+      <label for="voiceSelect">Speaker</label>
+      <select id="voiceSelect"></select>
+
+      <label for="volumeSlider">Volume</label>
+      <div class="range-row">
+        <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1">
+        <span id="volumeValue">1.00</span>
+      </div>
+
+      <label for="rateSlider">Rate</label>
+      <div class="range-row">
+        <input id="rateSlider" type="range" min="0.5" max="1.4" step="0.01" value="0.92">
+        <span id="rateValue">0.92</span>
+      </div>
+
+      <label for="pitchSlider">Pitch</label>
+      <div class="range-row">
+        <input id="pitchSlider" type="range" min="0.7" max="1.3" step="0.01" value="1.02">
+        <span id="pitchValue">1.02</span>
+      </div>
+
+      <button id="previewVoiceBtn" class="secondary-button full" type="button">Preview</button>
+      <p id="statusText" class="status-text">Idle</p>
+      <div class="meter" aria-label="Microphone level">
+        <div id="micLevel" class="meter-fill"></div>
+      </div>
+      <p id="micHint" class="mic-hint">Mic level appears while recording.</p>
+    </aside>
+  </main>
+
+  <script src="arthur.js"></script>
+</body>
+</html>
