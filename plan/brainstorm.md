@@ -1,3 +1,58 @@
+Funamental game aspects
+No letters, only tokens; auditory sounds/words
+One token per phoneme in a word
+Student says the sound of the phoneme as they drag the token down to the bottom of the screen
+For the sake of the dialogue, 'Arthur' is the ai voice the students will be interacting with
+
+Student is correct example:
+    Arthur: "Say 'and'"
+    Student: "and"
+    Arthur: "Now pull down a token for each sound in 'and'"
+    3 gray unlabeled tokens appear
+    The student touches the first token, and while dragging it down says: "ah"
+    The token turns green
+    The student touches the second token, and while dragging it down says: "nnn"
+    The second token turns green
+    The student touches the third token, and while dragging it down says: "duh"
+    The third token turns green
+    Arthur: "Now say 'and' but dont say 'duh'"
+    The third green token vanishes
+    The student says: "an"
+    END OF EXERCISE
+
+Student does not repeat the word example:
+    Arthur: "Say 'and'"
+    Student: "sand"
+    Arthur: "r u dumb?"
+    END OF EXERCISE
+
+Student fails to say correct sound while pulling down token example:
+    Arthur: "Say 'and'"
+    Student: "and"
+    Arthur: "Now pull down a token for each sound in 'and'"
+    3 gray unlabeled tokens appear
+    The student touches the first token, and while dragging it down says: "oh"
+    The token remains gray and snaps back up to its original position the moment wrong answer is heard
+    Arthur: "r u dumb?"
+    END OF EXERCISE
+
+Student misses final changed word:
+    Arthur: "Say 'and'"
+    Student: "and"
+    Arthur: "Now pull down a token for each sound in 'and'"
+    3 gray unlabeled tokens appear
+    The student touches the first token, and while dragging it down says: "ah"
+    The token turns green
+    The student touches the second token, and while dragging it down says: "nnn"
+    The second token turns green
+    The student touches the third token, and while dragging it down says: "duh"
+    The third token turns green
+    Arthur: "Now say 'and' but dont say 'duh'"
+    The third green token vanishes
+    The student says: "sand"
+    Arthur: "r u dumb?"
+    END OF EXERCISE
+
 Design
 A big tower with 20 floors
 Each floor has combats, when the user correctly says the word they will progress to another, if they dont then they will take damage
