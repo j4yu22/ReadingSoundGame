@@ -89,6 +89,7 @@ app.add_middleware(
         "http://127.0.0.1:5177",
         "http://localhost:5177",
     ],
+    allow_origin_regex=r"https?://(localhost|127\.0\.0\.1)(:\d+)?",
     allow_methods=["GET", "POST", "OPTIONS"],
     allow_headers=["content-type", "x-arthur-session"],
 )
