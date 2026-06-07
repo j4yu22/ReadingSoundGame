@@ -1,5 +1,7 @@
 __pycache__/
 *.py[cod]
+.venv/
+src/api/.venv/
 
 .env
 *.env

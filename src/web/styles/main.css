@@ -1,0 +1,379 @@
+:root {
+  color-scheme: dark;
+  --background: #10110f;
+  --surface: #181a17;
+  --surface-soft: #20231f;
+  --line: #343a32;
+  --text: #f1f5ec;
+  --muted: #aab3a2;
+  --green: #18b960;
+  --green-bright: #b7f20f;
+  --aqua: #75d8ff;
+  --violet: #b9a9eb;
+  --gray-token: #bfc0c2;
+  --shadow: 0 22px 70px rgba(0, 0, 0, 0.34);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  overflow-x: hidden;
+  background:
+    radial-gradient(circle at 16% 18%, rgba(24, 185, 96, 0.14), transparent 26%),
+    radial-gradient(circle at 84% 72%, rgba(117, 216, 255, 0.08), transparent 24%),
+    var(--background);
+  color: var(--text);
+  font-family: Arial, sans-serif;
+}
+
+button {
+  font: inherit;
+}
+
+.game {
+  min-height: 100vh;
+  display: grid;
+  grid-template-rows: 138px 66px minmax(360px, 1fr) auto;
+  justify-items: center;
+  gap: 10px;
+  padding: 28px 22px 34px;
+}
+
+.voice-panel {
+  width: min(620px, 100%);
+  height: 132px;
+  display: grid;
+  place-items: center;
+}
+
+.voice-line {
+  width: min(520px, 82vw);
+  height: 120px;
+  overflow: visible;
+}
+
+.voice-path,
+.voice-glow {
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+.voice-glow {
+  stroke: rgba(24, 185, 96, 0.28);
+  stroke-width: 12;
+  opacity: 0;
+}
+
+.voice-path {
+  stroke: var(--green);
+  stroke-width: 7;
+  filter: drop-shadow(0 0 12px rgba(24, 185, 96, 0.3));
+  transition: d 180ms ease;
+}
+
+.voice-line.is-speaking .voice-glow {
+  opacity: 1;
+  animation: voiceGlow 520ms ease-in-out infinite alternate;
+}
+
+.start-button {
+  min-width: 150px;
+  height: 54px;
+  border: 0;
+  border-radius: 8px;
+  background: linear-gradient(180deg, #22d86e, var(--green));
+  color: #07130c;
+  cursor: pointer;
+  font-size: 1.05rem;
+  font-weight: 800;
+  letter-spacing: 0;
+  box-shadow:
+    0 14px 30px rgba(24, 185, 96, 0.28),
+    inset 0 -4px 0 rgba(0, 0, 0, 0.16);
+}
+
+.start-button:active {
+  transform: translateY(2px);
+  box-shadow:
+    0 8px 18px rgba(24, 185, 96, 0.22),
+    inset 0 -2px 0 rgba(0, 0, 0, 0.18);
+}
+
+.start-button:focus-visible,
+.token:focus-visible {
+  outline: 4px solid rgba(117, 216, 255, 0.28);
+  outline-offset: 4px;
+}
+
+.activity-stage {
+  width: min(860px, 100%);
+  min-height: 380px;
+  display: grid;
+  grid-template-rows: 145px 160px;
+  align-content: center;
+  gap: 30px;
+  border: 0;
+  background: transparent;
+  box-shadow: none;
+}
+
+.debug-panel {
+  width: min(860px, 100%);
+  display: grid;
+  grid-template-columns: 1fr minmax(220px, 300px);
+  gap: 18px;
+  align-items: end;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(24, 26, 23, 0.82);
+  box-shadow: 0 16px 50px rgba(0, 0, 0, 0.24);
+  padding: 14px;
+}
+
+.debug-label,
+.status-text {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.subtitle-box {
+  min-height: 46px;
+  display: flex;
+  align-items: center;
+  margin-top: 7px;
+  padding: 12px 14px;
+  border: 1px solid #293028;
+  border-radius: 8px;
+  background: #0d0f0d;
+  color: var(--text);
+  line-height: 1.35;
+}
+
+.status-text {
+  margin-top: 8px;
+  text-transform: none;
+  font-weight: 600;
+}
+
+.volume-control {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
+  align-items: center;
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 700;
+}
+
+.volume-control input {
+  width: 100%;
+  accent-color: var(--green);
+}
+
+.volume-control strong {
+  min-width: 42px;
+  color: var(--text);
+  text-align: right;
+}
+
+.token-row,
+.drop-row {
+  display: grid;
+  grid-auto-flow: column;
+  grid-auto-columns: 112px;
+  justify-content: center;
+  align-items: center;
+  gap: clamp(26px, 8vw, 84px);
+}
+
+.drop-row {
+  align-items: start;
+}
+
+.token,
+.drop-target {
+  width: clamp(78px, 13vw, 104px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+}
+
+.token {
+  position: relative;
+  border: 0;
+  background: var(--gray-token);
+  cursor: grab;
+  opacity: 0;
+  box-shadow:
+    inset 0 -12px 0 rgba(0, 0, 0, 0.13),
+    0 18px 34px rgba(0, 0, 0, 0.32);
+  touch-action: none;
+  transform: translateY(calc(var(--drag-y, 0) - 10px));
+  transition:
+    background 160ms ease,
+    transform 260ms ease,
+    box-shadow 160ms ease,
+    opacity 460ms ease;
+}
+
+.activity-stage.tokens-visible .token {
+  opacity: 1;
+  transform: translateY(var(--drag-y, 0));
+}
+
+.token::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  bottom: -72px;
+  width: 34px;
+  height: 58px;
+  border-left: 7px solid rgba(241, 245, 236, 0.86);
+  border-bottom: 7px solid rgba(241, 245, 236, 0.86);
+  border-radius: 0 0 0 18px;
+  transform: translateX(-50%) rotate(-18deg);
+  opacity: 0;
+  pointer-events: none;
+}
+
+.token.is-demo::after {
+  opacity: 1;
+  animation: arrowNudge 860ms ease-in-out infinite;
+}
+
+.token.is-ready {
+  cursor: grab;
+}
+
+.token.is-demo,
+.token.is-user-active {
+  background: var(--violet);
+  box-shadow:
+    inset 0 -12px 0 rgba(0, 0, 0, 0.12),
+    0 18px 38px rgba(185, 169, 235, 0.28);
+}
+
+.token.is-shaking {
+  animation: tokenShake 240ms ease-in-out 2;
+}
+
+.token.is-dragging {
+  z-index: 4;
+  cursor: grabbing;
+  transition: none;
+}
+
+.token.is-complete {
+  cursor: default;
+  background: var(--green-bright);
+  box-shadow:
+    inset 0 -12px 0 rgba(0, 0, 0, 0.12),
+    0 18px 38px rgba(183, 242, 15, 0.26);
+}
+
+.activity-stage.tokens-visible .token.is-deleted {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateY(calc(var(--drag-y, 0) + 14px)) scale(0.82);
+}
+
+.token.is-helper {
+  background: var(--violet);
+  box-shadow:
+    inset 0 -12px 0 rgba(0, 0, 0, 0.12),
+    0 18px 38px rgba(185, 169, 235, 0.24);
+}
+
+.drop-target {
+  border: 2px solid transparent;
+  background: transparent;
+  pointer-events: none;
+}
+
+.drop-target.is-ready {
+  border-color: transparent;
+  background: transparent;
+}
+
+.drop-target.is-filled {
+  border-color: transparent;
+  background: transparent;
+}
+
+@keyframes voiceGlow {
+  from {
+    transform: scaleY(0.92);
+  }
+
+  to {
+    transform: scaleY(1.05);
+  }
+}
+
+@keyframes arrowNudge {
+  0%,
+  100% {
+    transform: translateX(-50%) translateY(-4px) rotate(-18deg);
+  }
+
+  50% {
+    transform: translateX(-50%) translateY(8px) rotate(-18deg);
+  }
+}
+
+@keyframes tokenShake {
+  0%,
+  100% {
+    left: 0;
+  }
+
+  30% {
+    left: -7px;
+  }
+
+  65% {
+    left: 7px;
+  }
+}
+
+@media (max-width: 700px) {
+  body {
+    overflow-y: auto;
+  }
+
+  .game {
+    grid-template-rows: 110px 64px auto auto;
+    padding: 18px 14px 24px;
+  }
+
+  .voice-panel {
+    height: 108px;
+  }
+
+  .activity-stage {
+    min-height: 390px;
+    grid-template-rows: 138px 160px;
+  }
+
+  .debug-panel {
+    grid-template-columns: 1fr;
+  }
+
+  .token-row,
+  .drop-row {
+    grid-auto-columns: minmax(72px, 90px);
+    gap: clamp(14px, 4vw, 24px);
+  }
+
+  .token::after {
+    bottom: -58px;
+    height: 48px;
+  }
+}

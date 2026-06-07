@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reading Sound Game</title>
+  <link rel="stylesheet" href="styles/main.css" />
+</head>
+<body>
+  <main class="game" aria-label="Reading Sound Game">
+    <section class="voice-panel" aria-label="Arthur voice">
+      <svg id="voiceLine" class="voice-line" viewBox="0 0 520 120" role="img" aria-label="Arthur voice line">
+        <path class="voice-glow" d="M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500" />
+        <path class="voice-path" d="M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500" />
+      </svg>
+    </section>
+
+    <button id="startButton" class="start-button" type="button">Start</button>
+
+    <section id="activityStage" class="activity-stage" aria-label="Sound token activity">
+      <div id="tokenRow" class="token-row" aria-label="Sound tokens"></div>
+      <div id="dropRow" class="drop-row" aria-label="Token drop row"></div>
+    </section>
+
+    <section class="debug-panel" aria-label="Debug subtitles and audio controls">
+      <div>
+        <p class="debug-label">Arthur</p>
+        <div id="subtitleBox" class="subtitle-box">Press Start.</div>
+        <p id="statusText" class="status-text">Voice: idle</p>
+      </div>
+
+      <label class="volume-control" for="volumeSlider">
+        <span>Volume</span>
+        <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" />
+        <strong id="volumeValue">100%</strong>
+      </label>
+    </section>
+  </main>
+
+  <script src="scripts/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,19 @@
+{
+  "activities": [
+    {
+      "id": "sailboat-delete-boat",
+      "type": "deletion",
+      "word": "sailboat",
+      "tokens": [
+        {
+          "sound": "sail"
+        },
+        {
+          "sound": "boat"
+        }
+      ],
+      "deleteSound": "sail",
+      "answer": "boat"
+    }
+  ]
+}

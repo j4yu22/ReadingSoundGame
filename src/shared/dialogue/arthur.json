@@ -1,0 +1,39 @@
+{
+  "voice": {
+    "name": "en-US-BrandonMultilingualNeural",
+    "defaultRate": "-35%",
+    "defaultPitch": "-6%"
+  },
+  "lines": {
+    "welcome": {
+      "text": "Welcome to the phonetic exercise. Let's begin.",
+      "ssml": "Welcome to the phonetic exercise. Let's begin.",
+      "rate": "0%"
+    },
+    "activity_start": {
+      "text": "Say \"{word}\".",
+      "ssml": "Say \"{word}\".",
+      "rate": "0%"
+    },
+    "token_sound": {
+      "text": "{sound}",
+      "ssml": "{sound}.",
+      "rate": "0%"
+    },
+    "substitution_prompt": {
+      "text": "Now say \"{word}\", instead of \"{fromSound}\" say \"{toSound}\".",
+      "ssml": "Now say \"{word}\", instead of \"{fromSound}\" say \"{toSound}\".",
+      "rate": "0%"
+    },
+    "deletion_prompt": {
+      "text": "Now say \"{word}\", but don't say \"{deleteSound}\".",
+      "ssml": "Now say \"{word}\", but don't say \"{deleteSound}\".",
+      "rate": "0%"
+    },
+    "activity_done": {
+      "text": "{answer}! very good.",
+      "ssml": "{answer}! very good.",
+      "rate": "0%"
+    }
+  }
+}

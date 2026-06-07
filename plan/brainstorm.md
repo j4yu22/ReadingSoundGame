@@ -22,6 +22,16 @@ Student is correct example:
 
 If student makes a mistake, prompt ask the student to follow along, and have Arthur voice the whole thing out.
 
+Mom's video:
+Mom: Say 'heading'
+Student: 'heading'
+Mom: 'head' (pulls down first token)
+Mom: 'ing' (pulls down second token)
+(student mimicks mom for pulling down the token)
+Mom: Now say 'heading', instead of 'du' say 'mm'
+Student: 'hemming'
+Mom: 'hemming'! very good
+
 Design
 A big tower with 20 floors
 Each floor has combats, when the user correctly says the word they will progress to another, if they dont then they will take damage
