@@ -5,10 +5,12 @@ const tokenRow = document.getElementById("tokenRow");
 const dropRow = document.getElementById("dropRow");
 const subtitleBox = document.getElementById("subtitleBox");
 const statusText = document.getElementById("statusText");
+const exerciseSelect = document.getElementById("exerciseSelect");
 const volumeSlider = document.getElementById("volumeSlider");
 const volumeValue = document.getElementById("volumeValue");
 
 const API_BASE = window.location.port === "5178" ? "" : "http://127.0.0.1:5178";
+let activityType = new URLSearchParams(window.location.search).get("type") || "deletion";
 const voiceFlatPath = "M20 60 H500";
 const voiceRestPath = "M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500";
 const voiceSpikePaths = [
@@ -46,6 +48,7 @@ let voiceFrame = null;
 let audioContext = null;
 let currentAudio = null;
 let currentVolume = Number(volumeSlider.value);
+let activityRunId = 0;
 
 function setSubtitle(text) {
   subtitleBox.textContent = text;
@@ -182,6 +185,41 @@ async function fetchDialogueAudio(lineId, variables = {}) {
   };
 }
 
+function activityTokenSounds() {
+  return currentActivity.tokens
+    .map((token) => token.sound)
+    .filter(Boolean);
+}
+
+function tokenClipSourcePhrase(token) {
+  return `Now say "${currentActivity.word}", but don't say "${token.sound}".`;
+}
+
+async function fetchTokenClipAudio(token) {
+  setStatus(`requesting clip ${token.sound}`);
+
+  const response = await fetch(`${API_BASE}/api/speech/token-clip`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      token: token.sound,
+      tokens: activityTokenSounds(),
+      source_phrase: tokenClipSourcePhrase(token),
+      occurrence: -1
+    })
+  });
+
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Token clip failed: ${response.status}`);
+  }
+
+  return {
+    blob: await response.blob(),
+    text: response.headers.get("X-Arthur-Text") || token.sound
+  };
+}
+
 async function playAudioBlob(audioBlob, options = {}) {
   if (currentAudio) {
     currentAudio.pause();
@@ -253,6 +291,21 @@ async function playArthurLine(lineId, variables = {}, options = {}) {
   }
 }
 
+async function playTokenClip(token, subtitleText = "") {
+  const clip = await fetchTokenClipAudio(token);
+  setSubtitle(subtitleText || clip.text);
+  await playAudioBlob(clip.blob);
+}
+
+async function playTokenSound(token) {
+  try {
+    await playTokenClip(token);
+  } catch (error) {
+    console.warn(error);
+    await playArthurLine("token_sound", tokenVariables(token));
+  }
+}
+
 function normalizeActivity(activity) {
   const normalized = {
     ...fallbackActivity,
@@ -267,7 +320,9 @@ function normalizeActivity(activity) {
 
 async function loadCurrentActivity() {
   try {
-    const response = await fetch(`${API_BASE}/api/activities/current`);
+    const response = await fetch(
+      `${API_BASE}/api/activities/current?type=${encodeURIComponent(activityType)}`
+    );
 
     if (!response.ok) {
       throw new Error(`Activity load failed: ${response.status}`);
@@ -278,6 +333,35 @@ async function loadCurrentActivity() {
     console.warn(error);
     currentActivity = fallbackActivity;
   }
+}
+
+function updateExerciseUrl() {
+  const url = new URL(window.location.href);
+
+  if (activityType === "deletion") {
+    url.searchParams.delete("type");
+  } else {
+    url.searchParams.set("type", activityType);
+  }
+
+  window.history.replaceState({}, "", url);
+}
+
+async function changeExerciseType(nextType) {
+  activityRunId += 1;
+  activityType = nextType;
+  updateExerciseUrl();
+  setSubtitle("Press Start.");
+  startButton.disabled = false;
+
+  if (currentAudio) {
+    currentAudio.pause();
+    currentAudio = null;
+  }
+
+  stopLiveVoice();
+  await loadCurrentActivity();
+  buildActivity(false);
 }
 
 function tokenElements() {
@@ -474,6 +558,26 @@ function getDeletedTokenIndex() {
   });
 }
 
+function getSubstitutionTokenIndex() {
+  const replaceFrom = normalizeSound(currentActivity.replaceFrom);
+
+  if (!replaceFrom) {
+    return -1;
+  }
+
+  return currentActivity.tokens.findIndex((token) => {
+    return normalizeSound(token.sound) === replaceFrom;
+  });
+}
+
+function findTokenBySound(sound) {
+  const target = normalizeSound(sound);
+
+  return currentActivity.tokens.find((token) => {
+    return normalizeSound(token.sound) === target;
+  });
+}
+
 function fadeDeletedToken() {
   const deletedIndex = getDeletedTokenIndex();
   const token = tokenElements()[deletedIndex];
@@ -483,29 +587,42 @@ function fadeDeletedToken() {
   }
 }
 
-function estimateDeletionFadeDelay(spokenText) {
-  const deleteSound = normalizeSound(currentActivity.deleteSound);
-  const text = String(spokenText || "").toLowerCase();
-  const deleteSoundIndex = text.lastIndexOf(deleteSound);
+function markSubstitutionToken() {
+  const tokenIndexToChange = getSubstitutionTokenIndex();
+  const token = tokenElements()[tokenIndexToChange];
 
-  if (!deleteSound || deleteSoundIndex < 0) {
-    return 2600;
+  if (token) {
+    token.classList.add("is-substituted");
+  }
+}
+
+function estimateSoundDelay(spokenText, sound, fallbackDelay = 2600) {
+  const targetSound = normalizeSound(sound);
+  const text = String(spokenText || "").toLowerCase();
+  const soundIndex = text.lastIndexOf(targetSound);
+
+  if (!targetSound || soundIndex < 0) {
+    return fallbackDelay;
   }
 
-  const textBeforeDeletedSound = spokenText.slice(0, deleteSoundIndex);
-  const wordsBeforeDeletedSound = textBeforeDeletedSound.match(/[a-z0-9']+/gi) || [];
-  const punctuationBeforeDeletedSound = textBeforeDeletedSound.match(/[,.!?;]/g) || [];
-  const quoteMarksBeforeDeletedSound = textBeforeDeletedSound.match(/"/g) || [];
+  const textBeforeSound = spokenText.slice(0, soundIndex);
+  const wordsBeforeSound = textBeforeSound.match(/[a-z0-9']+/gi) || [];
+  const punctuationBeforeSound = textBeforeSound.match(/[,.!?;]/g) || [];
+  const quoteMarksBeforeSound = textBeforeSound.match(/"/g) || [];
 
   return Math.min(
     4200,
     Math.max(
       1700,
-      wordsBeforeDeletedSound.length * 330
-        + punctuationBeforeDeletedSound.length * 230
-        + quoteMarksBeforeDeletedSound.length * 60
+      wordsBeforeSound.length * 330
+        + punctuationBeforeSound.length * 230
+        + quoteMarksBeforeSound.length * 60
     )
   );
+}
+
+function estimateDeletionFadeDelay(spokenText) {
+  return estimateSoundDelay(spokenText, currentActivity.deleteSound, 2600);
 }
 
 async function playDeletionPrompt() {
@@ -536,6 +653,34 @@ async function playDeletionPrompt() {
   fadeOnce();
 }
 
+async function playSubstitutionPrompt() {
+  let didChange = false;
+  let changeTimer = null;
+  const changeOnce = () => {
+    if (didChange) {
+      return;
+    }
+
+    didChange = true;
+    markSubstitutionToken();
+  };
+
+  await playArthurLine("substitution_prompt", activityVariables(), {
+    onPlaybackStart: (spokenText) => {
+      changeTimer = window.setTimeout(
+        changeOnce,
+        estimateSoundDelay(spokenText, currentActivity.replaceFrom, 2400)
+      );
+    }
+  });
+
+  if (changeTimer) {
+    window.clearTimeout(changeTimer);
+  }
+
+  changeOnce();
+}
+
 async function demoTokenSound(index) {
   const token = tokenElements()[index];
   const tokenData = currentActivity.tokens[index];
@@ -546,7 +691,7 @@ async function demoTokenSound(index) {
 
   token.classList.add("is-demo", "is-shaking");
   setTokenY(token, 30);
-  await playArthurLine("token_sound", tokenVariables(tokenData));
+  await playTokenSound(tokenData);
   await wait(260);
   token.classList.remove("is-demo", "is-shaking");
   setTokenY(token, 0);
@@ -563,36 +708,79 @@ async function demoAllTokenSounds() {
   updateActiveToken();
 }
 
+async function playActivityDone() {
+  const answerToken = findTokenBySound(currentActivity.answer);
+
+  if (answerToken) {
+    try {
+      await playTokenClip(answerToken, `${currentActivity.answer}! very good.`);
+      await wait(180);
+      await playArthurLine("very_good");
+      return;
+    } catch (error) {
+      console.warn(error);
+    }
+  }
+
+  await playArthurLine("activity_done", { answer: currentActivity.answer });
+}
+
 async function finishActivity() {
+  const runId = activityRunId;
   slidersUnlocked = false;
   updateActiveToken();
 
   if (getFinishPromptLineId() === "deletion_prompt") {
     await playDeletionPrompt();
   } else {
-    await playArthurLine("substitution_prompt", activityVariables());
+    await playSubstitutionPrompt();
+  }
+
+  if (runId !== activityRunId) {
+    return;
   }
 
   await wait(1400);
-  await playArthurLine("activity_done", { answer: currentActivity.answer });
+
+  if (runId !== activityRunId) {
+    return;
+  }
+
+  await playActivityDone();
   startButton.disabled = false;
 }
 
 async function startActivity() {
+  activityRunId += 1;
+  const runId = activityRunId;
   startButton.disabled = true;
   await loadCurrentActivity();
   buildActivity(true);
-  await playArthurLine("welcome");
+  // await playArthurLine("welcome");
   showTokens();
   await playArthurLine("activity_start", activityVariables());
+
+  if (runId !== activityRunId) {
+    return;
+  }
+
   await wait(450);
+
+  if (runId !== activityRunId) {
+    return;
+  }
+
   await demoAllTokenSounds();
 }
 
 startButton.addEventListener("click", startActivity);
+exerciseSelect.addEventListener("change", () => {
+  void changeExerciseType(exerciseSelect.value);
+});
 volumeSlider.addEventListener("input", updateVolumeLabel);
 
+exerciseSelect.value = activityType;
 setVoiceSpeaking(false);
-buildActivity(false);
+void changeExerciseType(activityType);
 updateVolumeLabel();
 setStatus("idle");

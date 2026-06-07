@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .venv/
 src/api/.venv/
+src/api/.cache/
 
 .env
 *.env

@@ -12,8 +12,8 @@
           "sound": "boat"
         }
       ],
-      "deleteSound": "sail",
-      "answer": "boat"
+      "deleteSound": "boat",
+      "answer": "sail"
     }
   ]
 }

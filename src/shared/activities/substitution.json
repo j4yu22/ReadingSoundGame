@@ -1,0 +1,23 @@
+{
+  "activities": [
+    {
+      "id": "plucking-to-plumming",
+      "type": "substitution",
+      "word": "plucking",
+      "tokens": [
+        {
+          "sound": "plu"
+        },
+        {
+          "sound": "ck"
+        },
+        {
+          "sound": "ing"
+        }
+      ],
+      "replaceFrom": "ck",
+      "replaceTo": "mm",
+      "answer": "plumming"
+    }
+  ]
+}

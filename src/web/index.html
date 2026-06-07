@@ -29,11 +29,21 @@
         <p id="statusText" class="status-text">Voice: idle</p>
       </div>
 
-      <label class="volume-control" for="volumeSlider">
-        <span>Volume</span>
-        <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" />
-        <strong id="volumeValue">100%</strong>
-      </label>
+      <div class="settings-panel">
+        <label class="exercise-control" for="exerciseSelect">
+          <span>Exercise</span>
+          <select id="exerciseSelect">
+            <option value="deletion">Deletion</option>
+            <option value="substitution">Substitution</option>
+          </select>
+        </label>
+
+        <label class="volume-control" for="volumeSlider">
+          <span>Volume</span>
+          <input id="volumeSlider" type="range" min="0" max="1" step="0.01" value="1" />
+          <strong id="volumeValue">100%</strong>
+        </label>
+      </div>
     </section>
   </main>
 
