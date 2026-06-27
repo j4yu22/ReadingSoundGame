@@ -1,10 +1,10 @@
 {
   "activities": [
     {
-      "id": "sailboat-delete-boat",
+      "id": "clamp-to-camp",
       "type": "deletion",
-      "word": "sailboat",
-      "answer": "sail"
+      "word": "clamp",
+      "answer": "camp"
     }
   ]
 }

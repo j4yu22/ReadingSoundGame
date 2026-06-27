@@ -615,9 +615,10 @@ function tokenVariables(token) {
 function activityVariables() {
   return {
     word: currentActivity.word,
-    deleteSound: currentActivity.deleteSound || currentActivity.replaceFrom,
-    fromSound: currentActivity.replaceFrom,
-    toSound: currentActivity.replaceTo
+    answer: currentActivity.answer,
+    deleteSound: currentActivity.deleteSound || currentActivity.deleteSounds?.[0] || "",
+    fromSound: currentActivity.fromSound || currentActivity.replaceFrom || "",
+    toSound: currentActivity.toSound || currentActivity.replaceTo || ""
   };
 }
 
@@ -685,17 +686,26 @@ async function playDeletionPrompt() {
   const deletedTokens = getDeletedTokenIndexes()
     .map((index) => currentActivity.tokens[index])
     .filter(Boolean);
+  let didFade = false;
 
-  await playArthurLine("deletion_prompt_intro", activityVariables());
+  const fadeOnce = () => {
+    if (didFade) {
+      return;
+    }
+
+    didFade = true;
+    fadeDeletedTokens();
+  };
 
   if (!deletedTokens.length) {
-    fadeDeletedTokens();
+    fadeOnce();
     return;
   }
 
   for (const token of deletedTokens) {
-    await playTokenClip(token, "Don't say this sound.", {
-      onPlaybackStart: fadeDeletedTokens
+    await playArthurLine("deletion_prompt_intro", activityVariables());
+    await playTokenClip(token, "", {
+      onPlaybackStart: fadeOnce
     });
     await wait(120);
   }
@@ -705,21 +715,30 @@ async function playSubstitutionPrompt() {
   const changedTokens = getSubstitutionTokenIndexes()
     .map((index) => currentActivity.tokens[index])
     .filter(Boolean);
+  let didMark = false;
 
-  await playArthurLine("substitution_prompt_intro", activityVariables());
+  const markOnce = () => {
+    if (didMark) {
+      return;
+    }
+
+    didMark = true;
+    markSubstitutionTokens();
+  };
 
   if (!changedTokens.length) {
-    markSubstitutionTokens();
+    markOnce();
     return;
   }
 
   for (const token of changedTokens) {
-    await playTokenClip(token, "Instead of this sound.", {
-      onPlaybackStart: markSubstitutionTokens
-    });
+    await playArthurLine("substitution_prompt_intro", activityVariables());
+    await playTokenClip(token);
     await wait(120);
     await playArthurLine("substitution_prompt_to");
-    await playReplacementClip(token, "Say this sound.");
+    await playReplacementClip(token, "", {
+      onPlaybackStart: markOnce
+    });
     await wait(120);
   }
 }

@@ -20,19 +20,14 @@
       "ssml": "{sound}."
 
     },
-    "substitution_prompt": {
-      "text": "Now say \"{word}\", instead of \"{fromSound}\" say \"{toSound}\".",
-      "ssml": "Now say \"{word}\", instead of \"{fromSound}\" say \"{toSound}\"."
-
-    },
     "substitution_prompt_intro": {
-      "text": "Now say \"{word}\". Instead of this sound:",
-      "ssml": "Now say \"{word}\". Instead of this sound:"
+      "text": "Now say \"{word}\", instead of",
+      "ssml": "Now say \"{word}\", instead of"
 
     },
     "substitution_prompt_to": {
-      "text": "say this sound.",
-      "ssml": "say this sound."
+      "text": "... say.",
+      "ssml": "... say."
 
     },
     "deletion_prompt": {
@@ -41,18 +36,13 @@
 
     },
     "deletion_prompt_intro": {
-      "text": "Now say \"{word}\", but don't say this sound:",
-      "ssml": "Now say \"{word}\", but don't say this sound:"
+      "text": "Now say \"{word}\", but don't say",
+      "ssml": "Now say \"{word}\", but don't say"
 
     },
     "activity_done": {
-      "text": "{answer}! very good.",
-      "ssml": "{answer}! very good."
-
-    },
-    "very_good": {
-      "text": "Very good.",
-      "ssml": "Very good."
+      "text": "... {answer}. Good job!",
+      "ssml": "... {answer}. Good job!"
 
     }
   }
