@@ -25,9 +25,24 @@
       "ssml": "Now say \"{word}\", instead of \"{fromSound}\" say \"{toSound}\"."
 
     },
+    "substitution_prompt_intro": {
+      "text": "Now say \"{word}\". Instead of this sound:",
+      "ssml": "Now say \"{word}\". Instead of this sound:"
+
+    },
+    "substitution_prompt_to": {
+      "text": "say this sound.",
+      "ssml": "say this sound."
+
+    },
     "deletion_prompt": {
       "text": "Now say \"{word}\", but don't say \"{deleteSound}\".",
       "ssml": "Now say \"{word}\", but don't say \"{deleteSound}\"."
+
+    },
+    "deletion_prompt_intro": {
+      "text": "Now say \"{word}\", but don't say this sound:",
+      "ssml": "Now say \"{word}\", but don't say this sound:"
 
     },
     "activity_done": {

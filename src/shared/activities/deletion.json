@@ -4,15 +4,6 @@
       "id": "sailboat-delete-boat",
       "type": "deletion",
       "word": "sailboat",
-      "tokens": [
-        {
-          "sound": "sail"
-        },
-        {
-          "sound": "boat"
-        }
-      ],
-      "deleteSound": "boat",
       "answer": "sail"
     }
   ]

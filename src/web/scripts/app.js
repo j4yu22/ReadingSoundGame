@@ -10,6 +10,7 @@ const volumeSlider = document.getElementById("volumeSlider");
 const volumeValue = document.getElementById("volumeValue");
 
 const API_BASE = window.location.port === "5178" ? "" : "http://127.0.0.1:5178";
+const TOKEN_PLAYBACK_RATE = 0.5;
 let activityType = new URLSearchParams(window.location.search).get("type") || "deletion";
 const voiceFlatPath = "M20 60 H500";
 const voiceRestPath = "M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500";
@@ -26,12 +27,19 @@ const fallbackActivity = {
   word: "sailboat",
   tokens: [
     {
-      sound: "sail"
+      id: "sound1",
+      sound: "sail",
+      role: "match",
+      action: "none"
     },
     {
-      sound: "boat"
+      id: "sound2",
+      sound: "boat",
+      role: "deletion",
+      action: "delete"
     }
   ],
+  deleteTokenIds: ["sound2"],
   deleteSound: "boat",
   answer: "sail"
 };
@@ -92,6 +100,22 @@ function wait(ms) {
   return new Promise((resolve) => {
     window.setTimeout(resolve, ms);
   });
+}
+
+function apiUrl(path) {
+  if (!path) {
+    return "";
+  }
+
+  if (/^https?:\/\//i.test(path)) {
+    return path;
+  }
+
+  if (path.startsWith("/api")) {
+    return `${API_BASE}${path}`;
+  }
+
+  return path;
 }
 
 async function arthurSpeaks(duration = 1800) {
@@ -196,6 +220,21 @@ function tokenClipSourcePhrase(token) {
 }
 
 async function fetchTokenClipAudio(token) {
+  if (token.clipUrl) {
+    setStatus(`requesting ${token.id || token.sound}`);
+
+    const response = await fetch(apiUrl(token.clipUrl));
+
+    if (!response.ok) {
+      throw new Error(`Token clip failed: ${response.status}`);
+    }
+
+    return {
+      blob: await response.blob(),
+      text: token.sound || token.id || "sound"
+    };
+  }
+
   setStatus(`requesting clip ${token.sound}`);
 
   const response = await fetch(`${API_BASE}/api/speech/token-clip`, {
@@ -220,6 +259,25 @@ async function fetchTokenClipAudio(token) {
   };
 }
 
+async function fetchReplacementClipAudio(token) {
+  if (!token.replacementClipUrl) {
+    throw new Error("No replacement clip is available for this token.");
+  }
+
+  setStatus(`requesting replacement ${token.id || token.sound}`);
+
+  const response = await fetch(apiUrl(token.replacementClipUrl));
+
+  if (!response.ok) {
+    throw new Error(`Replacement clip failed: ${response.status}`);
+  }
+
+  return {
+    blob: await response.blob(),
+    text: `${token.sound || token.id || "sound"} replacement`
+  };
+}
+
 async function playAudioBlob(audioBlob, options = {}) {
   if (currentAudio) {
     currentAudio.pause();
@@ -234,6 +292,10 @@ async function playAudioBlob(audioBlob, options = {}) {
 
   currentAudio = audio;
   audio.volume = currentVolume;
+  audio.playbackRate = options.playbackRate || 1;
+  audio.preservesPitch = options.preservesPitch !== false;
+  audio.mozPreservesPitch = options.preservesPitch !== false;
+  audio.webkitPreservesPitch = options.preservesPitch !== false;
   analyser.fftSize = 1024;
   analyser.smoothingTimeConstant = 0.28;
   source.connect(analyser);
@@ -291,10 +353,24 @@ async function playArthurLine(lineId, variables = {}, options = {}) {
   }
 }
 
-async function playTokenClip(token, subtitleText = "") {
+async function playTokenClip(token, subtitleText = "", options = {}) {
   const clip = await fetchTokenClipAudio(token);
   setSubtitle(subtitleText || clip.text);
-  await playAudioBlob(clip.blob);
+  await playAudioBlob(clip.blob, {
+    playbackRate: TOKEN_PLAYBACK_RATE,
+    preservesPitch: true,
+    ...options
+  });
+}
+
+async function playReplacementClip(token, subtitleText = "", options = {}) {
+  const clip = await fetchReplacementClipAudio(token);
+  setSubtitle(subtitleText || clip.text);
+  await playAudioBlob(clip.blob, {
+    playbackRate: TOKEN_PLAYBACK_RATE,
+    preservesPitch: true,
+    ...options
+  });
 }
 
 async function playTokenSound(token) {
@@ -307,12 +383,19 @@ async function playTokenSound(token) {
 }
 
 function normalizeActivity(activity) {
+  const rawTokens = Array.isArray(activity.tokens) && activity.tokens.length
+    ? activity.tokens
+    : fallbackActivity.tokens;
   const normalized = {
     ...fallbackActivity,
     ...activity,
-    tokens: Array.isArray(activity.tokens) && activity.tokens.length
-      ? activity.tokens
-      : fallbackActivity.tokens
+    tokens: rawTokens.map((token, index) => ({
+      id: token.id || `sound${index + 1}`,
+      sound: token.sound || token.id || `sound${index + 1}`,
+      role: token.role || "match",
+      action: token.action || "none",
+      ...token
+    }))
   };
 
   return normalized;
@@ -385,6 +468,8 @@ function buildActivity(isInteractive = true) {
     token.type = "button";
     token.dataset.index = String(index);
     token.dataset.sound = currentActivity.tokens[index].sound || "";
+    token.dataset.tokenId = currentActivity.tokens[index].id || "";
+    token.dataset.action = currentActivity.tokens[index].action || "none";
     token.setAttribute("aria-label", `Sound slider ${index + 1}`);
     token.addEventListener("pointerdown", handlePointerDown);
     token.addEventListener("pointermove", handlePointerMove);
@@ -536,38 +621,32 @@ function activityVariables() {
   };
 }
 
-function getFinishPromptLineId() {
-  return currentActivity.type === "substitution"
-    ? "substitution_prompt"
-    : "deletion_prompt";
-}
-
 function normalizeSound(sound) {
   return String(sound || "").trim().toLowerCase();
 }
 
-function getDeletedTokenIndex() {
-  const deleteSound = normalizeSound(currentActivity.deleteSound);
-
-  if (!deleteSound) {
-    return -1;
+function getDeletedTokenIndexes() {
+  if (Array.isArray(currentActivity.deleteTokenIds) && currentActivity.deleteTokenIds.length) {
+    return currentActivity.tokens
+      .map((token, index) => currentActivity.deleteTokenIds.includes(token.id) ? index : -1)
+      .filter((index) => index >= 0);
   }
 
-  return currentActivity.tokens.findIndex((token) => {
-    return normalizeSound(token.sound) === deleteSound;
-  });
+  return currentActivity.tokens
+    .map((token, index) => token.action === "delete" || token.role === "deletion" ? index : -1)
+    .filter((index) => index >= 0);
 }
 
-function getSubstitutionTokenIndex() {
-  const replaceFrom = normalizeSound(currentActivity.replaceFrom);
-
-  if (!replaceFrom) {
-    return -1;
+function getSubstitutionTokenIndexes() {
+  if (Array.isArray(currentActivity.changeTokenIds) && currentActivity.changeTokenIds.length) {
+    return currentActivity.tokens
+      .map((token, index) => currentActivity.changeTokenIds.includes(token.id) ? index : -1)
+      .filter((index) => index >= 0);
   }
 
-  return currentActivity.tokens.findIndex((token) => {
-    return normalizeSound(token.sound) === replaceFrom;
-  });
+  return currentActivity.tokens
+    .map((token, index) => token.action === "substitute" || token.role === "discrepancy" ? index : -1)
+    .filter((index) => index >= 0);
 }
 
 function findTokenBySound(sound) {
@@ -578,107 +657,71 @@ function findTokenBySound(sound) {
   });
 }
 
-function fadeDeletedToken() {
-  const deletedIndex = getDeletedTokenIndex();
-  const token = tokenElements()[deletedIndex];
+function fadeDeletedTokens() {
+  const tokens = tokenElements();
 
-  if (token) {
-    token.classList.add("is-deleted");
-  }
+  getDeletedTokenIndexes().forEach((deletedIndex) => {
+    const token = tokens[deletedIndex];
+
+    if (token) {
+      token.classList.add("is-deleted");
+    }
+  });
 }
 
-function markSubstitutionToken() {
-  const tokenIndexToChange = getSubstitutionTokenIndex();
-  const token = tokenElements()[tokenIndexToChange];
+function markSubstitutionTokens() {
+  const tokens = tokenElements();
 
-  if (token) {
-    token.classList.add("is-substituted");
-  }
-}
+  getSubstitutionTokenIndexes().forEach((tokenIndexToChange) => {
+    const token = tokens[tokenIndexToChange];
 
-function estimateSoundDelay(spokenText, sound, fallbackDelay = 2600) {
-  const targetSound = normalizeSound(sound);
-  const text = String(spokenText || "").toLowerCase();
-  const soundIndex = text.lastIndexOf(targetSound);
-
-  if (!targetSound || soundIndex < 0) {
-    return fallbackDelay;
-  }
-
-  const textBeforeSound = spokenText.slice(0, soundIndex);
-  const wordsBeforeSound = textBeforeSound.match(/[a-z0-9']+/gi) || [];
-  const punctuationBeforeSound = textBeforeSound.match(/[,.!?;]/g) || [];
-  const quoteMarksBeforeSound = textBeforeSound.match(/"/g) || [];
-
-  return Math.min(
-    4200,
-    Math.max(
-      1700,
-      wordsBeforeSound.length * 330
-        + punctuationBeforeSound.length * 230
-        + quoteMarksBeforeSound.length * 60
-    )
-  );
-}
-
-function estimateDeletionFadeDelay(spokenText) {
-  return estimateSoundDelay(spokenText, currentActivity.deleteSound, 2600);
+    if (token) {
+      token.classList.add("is-substituted");
+    }
+  });
 }
 
 async function playDeletionPrompt() {
-  let didFade = false;
-  let fadeTimer = null;
-  const fadeOnce = () => {
-    if (didFade) {
-      return;
-    }
+  const deletedTokens = getDeletedTokenIndexes()
+    .map((index) => currentActivity.tokens[index])
+    .filter(Boolean);
 
-    didFade = true;
-    fadeDeletedToken();
-  };
+  await playArthurLine("deletion_prompt_intro", activityVariables());
 
-  await playArthurLine("deletion_prompt", activityVariables(), {
-    onPlaybackStart: (spokenText) => {
-      fadeTimer = window.setTimeout(
-        fadeOnce,
-        estimateDeletionFadeDelay(spokenText)
-      );
-    }
-  });
-
-  if (fadeTimer) {
-    window.clearTimeout(fadeTimer);
+  if (!deletedTokens.length) {
+    fadeDeletedTokens();
+    return;
   }
 
-  fadeOnce();
+  for (const token of deletedTokens) {
+    await playTokenClip(token, "Don't say this sound.", {
+      onPlaybackStart: fadeDeletedTokens
+    });
+    await wait(120);
+  }
 }
 
 async function playSubstitutionPrompt() {
-  let didChange = false;
-  let changeTimer = null;
-  const changeOnce = () => {
-    if (didChange) {
-      return;
-    }
+  const changedTokens = getSubstitutionTokenIndexes()
+    .map((index) => currentActivity.tokens[index])
+    .filter(Boolean);
 
-    didChange = true;
-    markSubstitutionToken();
-  };
+  await playArthurLine("substitution_prompt_intro", activityVariables());
 
-  await playArthurLine("substitution_prompt", activityVariables(), {
-    onPlaybackStart: (spokenText) => {
-      changeTimer = window.setTimeout(
-        changeOnce,
-        estimateSoundDelay(spokenText, currentActivity.replaceFrom, 2400)
-      );
-    }
-  });
-
-  if (changeTimer) {
-    window.clearTimeout(changeTimer);
+  if (!changedTokens.length) {
+    markSubstitutionTokens();
+    return;
   }
 
-  changeOnce();
+  for (const token of changedTokens) {
+    await playTokenClip(token, "Instead of this sound.", {
+      onPlaybackStart: markSubstitutionTokens
+    });
+    await wait(120);
+    await playArthurLine("substitution_prompt_to");
+    await playReplacementClip(token, "Say this sound.");
+    await wait(120);
+  }
 }
 
 async function demoTokenSound(index) {
@@ -730,7 +773,7 @@ async function finishActivity() {
   slidersUnlocked = false;
   updateActiveToken();
 
-  if (getFinishPromptLineId() === "deletion_prompt") {
+  if (currentActivity.type === "deletion") {
     await playDeletionPrompt();
   } else {
     await playSubstitutionPrompt();

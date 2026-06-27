@@ -10,3 +10,4 @@ site tutorial
 fix frontend
 gamify it
 assessment
+deploy
