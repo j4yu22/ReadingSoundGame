@@ -26,8 +26,8 @@
 
     },
     "substitution_prompt_to": {
-      "text": "... say.",
-      "ssml": "... say."
+      "text": "say...",
+      "ssml": "say..."
 
     },
     "deletion_prompt": {

@@ -736,6 +736,7 @@ async function playSubstitutionPrompt() {
     await playTokenClip(token);
     await wait(120);
     await playArthurLine("substitution_prompt_to");
+    await wait(160);
     await playReplacementClip(token, "", {
       onPlaybackStart: markOnce
     });
