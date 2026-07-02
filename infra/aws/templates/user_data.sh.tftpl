@@ -1,0 +1,99 @@
+#!/bin/bash
+set -euxo pipefail
+
+APP_DIR="${app_dir}"
+AWS_REGION="${aws_region}"
+REPOSITORY_URL="${repository_url}"
+REPOSITORY_REF="${repository_ref}"
+SSM_PREFIX="${ssm_prefix}"
+SITE_ADDRESS="${site_address}"
+ACME_EMAIL="${acme_email}"
+DOCKER_COMPOSE_VERSION="${docker_compose_version}"
+
+dnf update -y
+dnf install -y awscli curl docker git
+
+systemctl enable --now docker
+
+mkdir -p /usr/local/lib/docker/cli-plugins
+ARCH="$(uname -m)"
+case "$${ARCH}" in
+  x86_64)
+    COMPOSE_ARCH="x86_64"
+    ;;
+  aarch64|arm64)
+    COMPOSE_ARCH="aarch64"
+    ;;
+  *)
+    echo "Unsupported architecture for Docker Compose: $${ARCH}" >&2
+    exit 1
+    ;;
+esac
+
+if ! docker compose version >/dev/null 2>&1; then
+  curl -fsSL \
+    "https://github.com/docker/compose/releases/download/$${DOCKER_COMPOSE_VERSION}/docker-compose-linux-$${COMPOSE_ARCH}" \
+    -o /usr/local/lib/docker/cli-plugins/docker-compose
+  chmod +x /usr/local/lib/docker/cli-plugins/docker-compose
+fi
+
+get_required_param() {
+  aws ssm get-parameter \
+    --region "$${AWS_REGION}" \
+    --name "$${SSM_PREFIX}/$1" \
+    --with-decryption \
+    --query "Parameter.Value" \
+    --output text
+}
+
+get_optional_param() {
+  aws ssm get-parameter \
+    --region "$${AWS_REGION}" \
+    --name "$${SSM_PREFIX}/$1" \
+    --with-decryption \
+    --query "Parameter.Value" \
+    --output text 2>/dev/null || true
+}
+
+AZURE_SPEECH_KEY="$(get_required_param AZURE_SPEECH_KEY)"
+AZURE_SPEECH_REGION="$(get_required_param AZURE_SPEECH_REGION)"
+AZURE_SPEECH_VOICE="$(get_optional_param AZURE_SPEECH_VOICE)"
+AZURE_SPEECH_FORMAT="$(get_optional_param AZURE_SPEECH_FORMAT)"
+AZURE_STT_LANGUAGE="$(get_optional_param AZURE_STT_LANGUAGE)"
+AZURE_STT_CORRECTNESS_THRESHOLD="$(get_optional_param AZURE_STT_CORRECTNESS_THRESHOLD)"
+
+AZURE_SPEECH_VOICE="$${AZURE_SPEECH_VOICE:-en-US-BrandonMultilingualNeural}"
+AZURE_SPEECH_FORMAT="$${AZURE_SPEECH_FORMAT:-audio-24khz-48kbitrate-mono-mp3}"
+AZURE_STT_LANGUAGE="$${AZURE_STT_LANGUAGE:-en-US}"
+AZURE_STT_CORRECTNESS_THRESHOLD="$${AZURE_STT_CORRECTNESS_THRESHOLD:-65}"
+
+mkdir -p "$(dirname "$${APP_DIR}")"
+
+if [ -d "$${APP_DIR}/.git" ]; then
+  cd "$${APP_DIR}"
+  git fetch --all --prune
+else
+  rm -rf "$${APP_DIR}"
+  git clone "$${REPOSITORY_URL}" "$${APP_DIR}"
+  cd "$${APP_DIR}"
+fi
+
+git checkout "$${REPOSITORY_REF}"
+
+cat > "$${APP_DIR}/.env" <<ENV
+AZURE_SPEECH_KEY=$${AZURE_SPEECH_KEY}
+AZURE_SPEECH_REGION=$${AZURE_SPEECH_REGION}
+AZURE_SPEECH_VOICE=$${AZURE_SPEECH_VOICE}
+AZURE_SPEECH_FORMAT=$${AZURE_SPEECH_FORMAT}
+AZURE_STT_LANGUAGE=$${AZURE_STT_LANGUAGE}
+AZURE_STT_CORRECTNESS_THRESHOLD=$${AZURE_STT_CORRECTNESS_THRESHOLD}
+SITE_ADDRESS=$${SITE_ADDRESS}
+ACME_EMAIL=$${ACME_EMAIL}
+HTTP_PORT=80
+HTTPS_PORT=443
+ENV
+
+docker compose down --remove-orphans || true
+docker compose up -d --build
+
+docker image prune -f

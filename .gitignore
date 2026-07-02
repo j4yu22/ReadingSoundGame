@@ -10,3 +10,11 @@ src/api/.cache/
 !*.env.example
 
 test/arthur/.env
+
+**/.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+crash.log
+crash.*.log

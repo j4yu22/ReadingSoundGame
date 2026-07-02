@@ -1,0 +1,10 @@
+# Optional: copy this file to backend.tf after creating the S3 bucket.
+# Terraform backend blocks cannot use variables, so edit the bucket/key manually.
+
+terraform {
+  backend "s3" {
+    bucket = "your-terraform-state-bucket"
+    key    = "reading-sound-game/terraform.tfstate"
+    region = "us-west-2"
+  }
+}

@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: .
+    image: reading-sound-game:local
+    restart: unless-stopped
+    environment:
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:?Set AZURE_SPEECH_KEY}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:?Set AZURE_SPEECH_REGION}
+      AZURE_SPEECH_VOICE: ${AZURE_SPEECH_VOICE:-en-US-BrandonMultilingualNeural}
+      AZURE_SPEECH_FORMAT: ${AZURE_SPEECH_FORMAT:-audio-24khz-48kbitrate-mono-mp3}
+      AZURE_STT_LANGUAGE: ${AZURE_STT_LANGUAGE:-en-US}
+      AZURE_STT_CORRECTNESS_THRESHOLD: ${AZURE_STT_CORRECTNESS_THRESHOLD:-65}
+    expose:
+      - "8080"
+    volumes:
+      - api_cache:/app/src/api/.cache
+    healthcheck:
+      test:
+        [
+          "CMD",
+          ".venv/bin/python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8080/api/health', timeout=5).read()",
+        ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS:-:80}
+      ACME_EMAIL: ${ACME_EMAIL:-}
+    ports:
+      - "${HTTP_PORT:-80}:80"
+      - "${HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  api_cache:
+  caddy_data:
+  caddy_config:
