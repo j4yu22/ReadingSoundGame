@@ -3,12 +3,13 @@ from __future__ import annotations
 import asyncio
 from typing import Any
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import Response
 from pydantic import BaseModel, Field
 
 from app.core.config import settings
 from app.services.audio_clips import build_source_tokens, synthesize_token_clip
+from app.services.speech_to_text import recognize_wav_bytes
 from app.services.text_to_speech import (
     DialogueError,
     get_dialogue_line,
@@ -83,3 +84,24 @@ async def token_clip(request: TokenClipRequest) -> Response:
             "Cache-Control": "public, max-age=31536000, immutable",
         },
     )
+
+
+@router.post("/listen-check")
+async def listen_check(
+    request: Request,
+    expected: str = "",
+    mode: str = "presence",
+) -> dict[str, Any]:
+    if mode not in {"presence", "final"}:
+        raise HTTPException(status_code=400, detail="Unsupported listen-check mode.")
+
+    try:
+        audio = await request.body()
+        return await asyncio.to_thread(
+            recognize_wav_bytes,
+            audio,
+            expected=expected,
+            mode=mode,
+        )
+    except DialogueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc

@@ -1,7 +1,7 @@
 Immediate
 
-get substitution exercises working
 implement user interactivity
+deploy
 
 
 Later goals
@@ -10,4 +10,3 @@ site tutorial
 fix frontend
 gamify it
 assessment
-deploy

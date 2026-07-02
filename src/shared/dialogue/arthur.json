@@ -20,6 +20,11 @@
       "ssml": "{sound}."
 
     },
+    "tokens_prompt": {
+      "text": "Now pull down a token for each sound in \"{word}\".",
+      "ssml": "Now pull down a token for each sound in \"{word}\"."
+
+    },
     "substitution_prompt_intro": {
       "text": "Now say \"{word}\", instead of",
       "ssml": "Now say \"{word}\", instead of"
@@ -43,6 +48,11 @@
     "activity_done": {
       "text": "... {answer}. Good job!",
       "ssml": "... {answer}. Good job!"
+
+    },
+    "answer_correction": {
+      "text": "The answer is \"{answer}\".",
+      "ssml": "The answer is \"{answer}\"."
 
     }
   }
