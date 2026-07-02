@@ -9,7 +9,10 @@ const exerciseSelect = document.getElementById("exerciseSelect");
 const volumeSlider = document.getElementById("volumeSlider");
 const volumeValue = document.getElementById("volumeValue");
 
-const API_BASE = window.location.port === "5178" ? "" : "http://127.0.0.1:5178";
+const LIVE_SERVER_PORTS = new Set(["5500", "5501"]);
+const API_BASE = LIVE_SERVER_PORTS.has(window.location.port)
+  ? "http://127.0.0.1:5178"
+  : "";
 const APP_VERSION = "stt-checkpoints-20260702c";
 const TOKEN_PLAYBACK_RATE = 0.5;
 const LISTEN_SAMPLE_RATE = 16000;
