@@ -2,12 +2,12 @@ aws_region   = "us-west-2"
 project_name = "reading-sound-game"
 
 # Use your real repository URL. The EC2 host must be able to clone it.
-repository_url = "https://github.com/YOUR_USERNAME/ReadingSoundGame.git"
+repository_url = "https://github.com/j4yu22/ReadingSoundGame"
 repository_ref = "main"
 
 # Use a real domain for deployed microphone support.
 # Caddy can issue HTTPS only after DNS points this domain to the EC2 public IP.
-site_address = "reading.example.com"
+site_address = "readingsoundgames.com"
 acme_email   = "you@example.com"
 
 # Optional SSH access. Prefer your own IP/32 instead of 0.0.0.0/0.
@@ -18,3 +18,6 @@ ssh_cidr_blocks = []
 create_elastic_ip = false
 
 ssm_prefix = "/reading-sound-game"
+
+# Checks GitHub every 5 minutes and redeploys if main changed.
+auto_update_interval_minutes = 5

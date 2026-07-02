@@ -12,6 +12,10 @@ Terraform creates:
 The EC2 boot script installs Docker, clones the repository, writes a local `.env`
 from SSM parameters, and runs `docker compose up -d --build`.
 
+It also installs a systemd timer that checks GitHub every few minutes. If the
+configured branch has a new commit, the host pulls it and reruns
+`docker compose up -d --build`.
+
 ## 1. Store Azure Speech settings in SSM
 
 Use your AWS profile/account and region:
@@ -63,8 +67,11 @@ Important:
 
 - `repository_url` must point to a repo the EC2 host can clone.
 - `site_address` should be a real domain for HTTPS and microphone support.
+- For the root domain, use `site_address = "readingsoundgames.com"`.
 - For first HTTP-only smoke tests, `site_address = ":80"` is okay, but STT mic
   access will not work in normal deployed browsers without HTTPS.
+- `auto_update_interval_minutes = 5` means the server checks GitHub every five
+  minutes. Set it to `0` to disable automatic updates.
 
 ## 3. Optional S3 backend
 
@@ -107,12 +114,34 @@ If SSH is enabled:
 ssh ec2-user@YOUR_PUBLIC_DNS
 sudo docker ps
 sudo docker compose -f /opt/reading-sound-game/compose.yaml logs -f
+systemctl list-timers reading-sound-game-update.timer
 ```
 
 If SSM Session Manager is available in your account, you can connect from the AWS
 Console without opening SSH.
 
-## 6. Destroy
+## 6. Point GoDaddy DNS to AWS
+
+In GoDaddy DNS for `readingsoundgames.com`, update or create:
+
+- Type: `A`
+- Name: `@`
+- Value: Terraform `public_ip`
+- TTL: default or 600 seconds
+
+Optional:
+
+- Type: `CNAME`
+- Name: `www`
+- Value: `readingsoundgames.com`
+
+If you use `www`, set `site_address` to:
+
+```hcl
+site_address = "readingsoundgames.com, www.readingsoundgames.com"
+```
+
+## 7. Destroy
 
 ```bash
 terraform destroy

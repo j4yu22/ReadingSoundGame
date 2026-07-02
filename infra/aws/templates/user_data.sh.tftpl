@@ -9,6 +9,7 @@ SSM_PREFIX="${ssm_prefix}"
 SITE_ADDRESS="${site_address}"
 ACME_EMAIL="${acme_email}"
 DOCKER_COMPOSE_VERSION="${docker_compose_version}"
+AUTO_UPDATE_INTERVAL="${auto_update_interval}"
 
 dnf update -y
 dnf install -y awscli curl docker git
@@ -79,6 +80,9 @@ else
 fi
 
 git checkout "$${REPOSITORY_REF}"
+if git rev-parse --verify "origin/$${REPOSITORY_REF}" >/dev/null 2>&1; then
+  git reset --hard "origin/$${REPOSITORY_REF}"
+fi
 
 cat > "$${APP_DIR}/.env" <<ENV
 AZURE_SPEECH_KEY=$${AZURE_SPEECH_KEY}
@@ -95,5 +99,73 @@ ENV
 
 docker compose down --remove-orphans || true
 docker compose up -d --build
+
+cat > /usr/local/bin/reading-sound-game-update <<SCRIPT
+#!/bin/bash
+set -euo pipefail
+
+APP_DIR="$${APP_DIR}"
+REPOSITORY_REF="$${REPOSITORY_REF}"
+
+cd "\$${APP_DIR}"
+git fetch origin "\$${REPOSITORY_REF}" --prune
+
+current_commit="\$(git rev-parse HEAD)"
+
+if git rev-parse --verify "origin/\$${REPOSITORY_REF}" >/dev/null 2>&1; then
+  target_commit="\$(git rev-parse "origin/\$${REPOSITORY_REF}")"
+
+  if [ "\$${current_commit}" = "\$${target_commit}" ]; then
+    echo "Already on latest commit \$${current_commit}."
+    exit 0
+  fi
+
+  git checkout "\$${REPOSITORY_REF}"
+  git reset --hard "\$${target_commit}"
+else
+  git checkout "\$${REPOSITORY_REF}"
+  target_commit="\$(git rev-parse HEAD)"
+
+  if [ "\$${current_commit}" = "\$${target_commit}" ]; then
+    echo "Already on requested ref \$${current_commit}."
+    exit 0
+  fi
+fi
+
+docker compose up -d --build
+docker image prune -f
+SCRIPT
+chmod +x /usr/local/bin/reading-sound-game-update
+
+cat > /etc/systemd/system/reading-sound-game-update.service <<SERVICE
+[Unit]
+Description=Update Reading Sound Game from GitHub
+Requires=docker.service
+After=network-online.target docker.service
+
+[Service]
+Type=oneshot
+WorkingDirectory=$${APP_DIR}
+ExecStart=/usr/local/bin/reading-sound-game-update
+SERVICE
+
+if [ "$${AUTO_UPDATE_INTERVAL}" != "0" ]; then
+  cat > /etc/systemd/system/reading-sound-game-update.timer <<TIMER
+[Unit]
+Description=Check GitHub for Reading Sound Game updates
+
+[Timer]
+OnBootSec=5min
+OnUnitActiveSec=$${AUTO_UPDATE_INTERVAL}min
+RandomizedDelaySec=30s
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+TIMER
+
+  systemctl daemon-reload
+  systemctl enable --now reading-sound-game-update.timer
+fi
 
 docker image prune -f

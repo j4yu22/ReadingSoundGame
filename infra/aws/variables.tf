@@ -68,3 +68,9 @@ variable "create_elastic_ip" {
   type        = bool
   default     = false
 }
+
+variable "auto_update_interval_minutes" {
+  description = "How often the EC2 host checks GitHub for updates. Set to 0 to disable automatic updates."
+  type        = number
+  default     = 5
+}
