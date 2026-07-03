@@ -1,8 +1,5 @@
 Immediate
-
-implement user interactivity
-deploy
-
+polish site and implement all exercises
 
 Later goals
 
