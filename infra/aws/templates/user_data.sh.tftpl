@@ -12,7 +12,7 @@ DOCKER_COMPOSE_VERSION="${docker_compose_version}"
 AUTO_UPDATE_INTERVAL="${auto_update_interval}"
 
 dnf update -y
-dnf install -y awscli curl docker git
+dnf install -y awscli docker git
 
 systemctl enable --now docker
 
