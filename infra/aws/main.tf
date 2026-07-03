@@ -157,11 +157,12 @@ resource "aws_instance" "app" {
     acme_email             = var.acme_email
     ssm_prefix             = var.ssm_prefix
     docker_compose_version = var.docker_compose_version
+    docker_buildx_version  = var.docker_buildx_version
     auto_update_interval   = var.auto_update_interval_minutes
   })
 
   root_block_device {
-    volume_size = 20
+    volume_size = 30
     volume_type = "gp3"
   }
 

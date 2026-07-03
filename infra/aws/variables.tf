@@ -63,6 +63,12 @@ variable "docker_compose_version" {
   default     = "v5.1.2"
 }
 
+variable "docker_buildx_version" {
+  description = "Docker Buildx CLI plugin version installed by user data."
+  type        = string
+  default     = "v0.35.0"
+}
+
 variable "create_elastic_ip" {
   description = "Create and attach a static Elastic IP. Useful for DNS, but remember public IPv4 addresses can cost money."
   type        = bool
