@@ -10,6 +10,7 @@ src/api/.cache/
 !*.env.example
 
 test/arthur/.env
+test/output/
 
 **/.terraform/
 *.tfstate
