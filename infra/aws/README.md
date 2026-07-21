@@ -39,7 +39,7 @@ aws ssm put-parameter \
   --region us-west-2 \
   --name /reading-sound-game/AZURE_SPEECH_VOICE \
   --type SecureString \
-  --value "en-US-BrandonMultilingualNeural" \
+  --value "en-US-AvaNeural" \
   --overwrite
 ```
 

@@ -4,7 +4,8 @@
       "id": "clamp-to-camp",
       "type": "deletion",
       "word": "clamp",
-      "answer": "camp"
+      "answer": "camp",
+      "deletedPhonemes": ["l"]
     }
   ]
 }

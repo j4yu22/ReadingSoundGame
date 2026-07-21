@@ -42,7 +42,7 @@ load_local_env()
 class Settings:
     azure_speech_key: str = os.getenv("AZURE_SPEECH_KEY", "")
     azure_speech_region: str = os.getenv("AZURE_SPEECH_REGION", "")
-    azure_speech_voice: str = os.getenv("AZURE_SPEECH_VOICE", "en-US-GuyNeural")
+    azure_speech_voice: str = os.getenv("AZURE_SPEECH_VOICE", "en-US-AvaNeural")
     azure_speech_format: str = os.getenv(
         "AZURE_SPEECH_FORMAT", "audio-24khz-48kbitrate-mono-mp3"
     )

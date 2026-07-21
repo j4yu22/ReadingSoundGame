@@ -1,0 +1,361 @@
+{
+  "schema_version": 1,
+  "dialect": "General American English",
+  "phoneme_count": 44,
+  "usage": "Paste the test_input value into test/phoneme.py. The slashes are optional.",
+  "test_input_note": "Some test inputs intentionally add a schwa or length mark to make short phonemes clearer in Azure TTS. The ipa field remains the underlying phoneme.",
+  "phonemes": [
+    {
+      "number": 1,
+      "category": "consonant",
+      "recognizable_spelling": "b",
+      "ipa": "b",
+      "test_input": "/bə/",
+      "example_word": "ball"
+    },
+    {
+      "number": 2,
+      "category": "consonant",
+      "recognizable_spelling": "d",
+      "ipa": "d",
+      "test_input": "/də/",
+      "example_word": "dog"
+    },
+    {
+      "number": 3,
+      "category": "consonant",
+      "recognizable_spelling": "f",
+      "ipa": "f",
+      "test_input": "/f/",
+      "example_word": "fan"
+    },
+    {
+      "number": 4,
+      "category": "consonant",
+      "recognizable_spelling": "g",
+      "ipa": "ɡ",
+      "test_input": "/ɡə/",
+      "example_word": "grapes"
+    },
+    {
+      "number": 5,
+      "category": "consonant",
+      "recognizable_spelling": "h",
+      "ipa": "h",
+      "test_input": "/hə/",
+      "example_word": "hat"
+    },
+    {
+      "number": 6,
+      "category": "consonant",
+      "recognizable_spelling": "j",
+      "ipa": "dʒ",
+      "test_input": "/dʒə/",
+      "example_word": "jellyfish"
+    },
+    {
+      "number": 7,
+      "category": "consonant",
+      "recognizable_spelling": "k",
+      "ipa": "k",
+      "test_input": "/k/",
+      "example_word": "kite"
+    },
+    {
+      "number": 8,
+      "category": "consonant",
+      "recognizable_spelling": "l",
+      "ipa": "l",
+      "test_input": "/l/",
+      "example_word": "leaf"
+    },
+    {
+      "number": 9,
+      "category": "consonant",
+      "recognizable_spelling": "m",
+      "ipa": "m",
+      "test_input": "/mː/",
+      "example_word": "monkey"
+    },
+    {
+      "number": 10,
+      "category": "consonant",
+      "recognizable_spelling": "n",
+      "ipa": "n",
+      "test_input": "/nː/",
+      "example_word": "nest"
+    },
+    {
+      "number": 11,
+      "category": "consonant",
+      "recognizable_spelling": "ng",
+      "ipa": "ŋ",
+      "test_input": "/ŋ/",
+      "example_word": "ring"
+    },
+    {
+      "number": 12,
+      "category": "consonant",
+      "recognizable_spelling": "p",
+      "ipa": "p",
+      "test_input": "/p/",
+      "example_word": "pig"
+    },
+    {
+      "number": 13,
+      "category": "consonant",
+      "recognizable_spelling": "r",
+      "ipa": "ɹ",
+      "test_input": "/ɹ/",
+      "example_word": "robot"
+    },
+    {
+      "number": 14,
+      "category": "consonant",
+      "recognizable_spelling": "s",
+      "ipa": "s",
+      "test_input": "/s/",
+      "example_word": "sun"
+    },
+    {
+      "number": 15,
+      "category": "consonant",
+      "recognizable_spelling": "t",
+      "ipa": "t",
+      "test_input": "/t/",
+      "example_word": "tap"
+    },
+    {
+      "number": 16,
+      "category": "consonant",
+      "recognizable_spelling": "v",
+      "ipa": "v",
+      "test_input": "/və/",
+      "example_word": "van"
+    },
+    {
+      "number": 17,
+      "category": "consonant",
+      "recognizable_spelling": "w",
+      "ipa": "w",
+      "test_input": "/wə/",
+      "example_word": "web"
+    },
+    {
+      "number": 18,
+      "category": "consonant",
+      "recognizable_spelling": "y",
+      "ipa": "j",
+      "test_input": "/j/",
+      "example_word": "yo-yo"
+    },
+    {
+      "number": 19,
+      "category": "consonant",
+      "recognizable_spelling": "z",
+      "ipa": "z",
+      "test_input": "/zə/",
+      "example_word": "zebra"
+    },
+    {
+      "number": 20,
+      "category": "consonant digraph",
+      "recognizable_spelling": "zh",
+      "ipa": "ʒ",
+      "test_input": "/ʒə/",
+      "example_word": "treasure"
+    },
+    {
+      "number": 21,
+      "category": "consonant digraph",
+      "recognizable_spelling": "ch",
+      "ipa": "tʃ",
+      "test_input": "/tʃ/",
+      "example_word": "cheese"
+    },
+    {
+      "number": 22,
+      "category": "consonant digraph",
+      "recognizable_spelling": "sh",
+      "ipa": "ʃ",
+      "test_input": "/ʃ/",
+      "example_word": "shark"
+    },
+    {
+      "number": 23,
+      "category": "consonant digraph",
+      "recognizable_spelling": "th (unvoiced)",
+      "ipa": "θ",
+      "test_input": "/θə/",
+      "example_word": "thing"
+    },
+    {
+      "number": 24,
+      "category": "consonant digraph",
+      "recognizable_spelling": "th (voiced)",
+      "ipa": "ð",
+      "test_input": "/ðə/",
+      "example_word": "feather"
+    },
+    {
+      "number": 25,
+      "category": "short vowel",
+      "recognizable_spelling": "short a",
+      "ipa": "æ",
+      "test_input": "/æ/",
+      "example_word": "cat"
+    },
+    {
+      "number": 26,
+      "category": "short vowel",
+      "recognizable_spelling": "short e",
+      "ipa": "ɛ",
+      "test_input": "/ɛ/",
+      "example_word": "egg"
+    },
+    {
+      "number": 27,
+      "category": "short vowel",
+      "recognizable_spelling": "short i",
+      "ipa": "ɪ",
+      "test_input": "/ɪ/",
+      "example_word": "igloo"
+    },
+    {
+      "number": 28,
+      "category": "short vowel",
+      "recognizable_spelling": "short o",
+      "ipa": "ɑ",
+      "test_input": "/ɒ/",
+      "example_word": "orange"
+    },
+    {
+      "number": 29,
+      "category": "short vowel",
+      "recognizable_spelling": "short u",
+      "ipa": "ʌ",
+      "test_input": "/ʌ/",
+      "example_word": "mug"
+    },
+    {
+      "number": 30,
+      "category": "short vowel",
+      "recognizable_spelling": "short oo",
+      "ipa": "ʊ",
+      "test_input": "/ʊ/",
+      "example_word": "book"
+    },
+    {
+      "number": 31,
+      "category": "long vowel",
+      "recognizable_spelling": "long a",
+      "ipa": "eɪ",
+      "test_input": "/eɪ/",
+      "example_word": "snail"
+    },
+    {
+      "number": 32,
+      "category": "long vowel",
+      "recognizable_spelling": "long e",
+      "ipa": "i",
+      "test_input": "/i/",
+      "example_word": "bee"
+    },
+    {
+      "number": 33,
+      "category": "long vowel",
+      "recognizable_spelling": "long i",
+      "ipa": "aɪ",
+      "test_input": "/aɪ/",
+      "example_word": "spider"
+    },
+    {
+      "number": 34,
+      "category": "long vowel",
+      "recognizable_spelling": "long o",
+      "ipa": "oʊ",
+      "test_input": "/oʊ/",
+      "example_word": "boat"
+    },
+    {
+      "number": 35,
+      "category": "long vowel",
+      "recognizable_spelling": "long oo",
+      "ipa": "u",
+      "test_input": "/u/",
+      "example_word": "moon"
+    },
+    {
+      "number": 36,
+      "category": "r-controlled vowel",
+      "recognizable_spelling": "air",
+      "ipa": "ɛɹ",
+      "test_input": "/ɛɹ/",
+      "example_word": "chair"
+    },
+    {
+      "number": 37,
+      "category": "r-controlled vowel",
+      "recognizable_spelling": "ar",
+      "ipa": "ɑɹ",
+      "test_input": "/ɑɹ/",
+      "example_word": "car"
+    },
+    {
+      "number": 38,
+      "category": "r-controlled vowel",
+      "recognizable_spelling": "er",
+      "ipa": "ɝ",
+      "test_input": "/ɝ/",
+      "example_word": "bird"
+    },
+    {
+      "number": 39,
+      "category": "r-controlled vowel",
+      "recognizable_spelling": "aw",
+      "ipa": "ɔ",
+      "test_input": "/ɔ/",
+      "example_word": "paw"
+    },
+    {
+      "number": 40,
+      "category": "r-controlled vowel",
+      "recognizable_spelling": "ear",
+      "ipa": "ɪɹ",
+      "test_input": "/ɪɹ/",
+      "example_word": "ear"
+    },
+    {
+      "number": 41,
+      "category": "r-controlled vowel",
+      "recognizable_spelling": "ure",
+      "ipa": "jʊɹ",
+      "test_input": "/jʊɹ/",
+      "example_word": "cure"
+    },
+    {
+      "number": 42,
+      "category": "diphthong",
+      "recognizable_spelling": "oi/oy",
+      "ipa": "ɔɪ",
+      "test_input": "/ɔɪ/",
+      "example_word": "coin"
+    },
+    {
+      "number": 43,
+      "category": "diphthong",
+      "recognizable_spelling": "ow/ou",
+      "ipa": "aʊ",
+      "test_input": "/aʊ/",
+      "example_word": "cow"
+    },
+    {
+      "number": 44,
+      "category": "unstressed vowel",
+      "recognizable_spelling": "schwa/uh",
+      "ipa": "ə",
+      "test_input": "/ə/",
+      "example_word": "ladder"
+    }
+  ]
+}

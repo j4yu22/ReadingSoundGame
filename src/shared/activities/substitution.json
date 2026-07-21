@@ -4,7 +4,9 @@
       "id": "plucking-to-plumming",
       "type": "substitution",
       "word": "plucking",
-      "answer": "plumming"
+      "answer": "plumming",
+      "oldPhonemes": ["k"],
+      "newPhonemes": ["m"]
     }
   ]
 }

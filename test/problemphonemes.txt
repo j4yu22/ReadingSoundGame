@@ -1,0 +1,14 @@
+b: short, need shwa
+d: short, need shwa
+g: short, need shwa
+h: short, need shwa
+j: short, need shwa
+m: make mm for better sound
+n: make nn for better sound
+v: short, need shwa
+w: short, need shwa
+z: short, need shwa
+zh: short, need shwa
+th (unvoiced): short, need shwa
+th (voiced): short, need shwa
+short o: needs different symbol, sounds more like an a sound than o sound

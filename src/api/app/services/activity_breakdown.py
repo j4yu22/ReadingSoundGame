@@ -9,10 +9,17 @@ from typing import Any
 
 from app.core.config import API_DIR, settings
 from app.services.breakdown import BREAKDOWN_VERSION
-from app.services.breakdown import deletion, substitution
 from app.services.breakdown.audio import clean_file_part, clip_samples, load_audio
 from app.services.breakdown.models import ActivityRegion, AudioData
 from app.services.audio_clips import synthesize_wav_with_boundaries
+from app.services.phoneme_breakdown import (
+    assess_word_phonemes,
+    build_deletion_regions,
+    build_substitution_regions,
+    format_phonemes,
+    marker_payload,
+    parse_phoneme_sequence,
+)
 from app.services.text_to_speech import DialogueError, load_dialogue, wrap_ssml
 
 
@@ -98,34 +105,6 @@ def clip_path_for_id(clip_id: str) -> Path:
     return path
 
 
-def analyze_substitution_audio(
-    original_audio: AudioData,
-    answer_audio: AudioData,
-) -> list[ActivityRegion]:
-    return substitution.analyze_audio(original_audio, answer_audio)
-
-
-def analyze_deletion_audio(
-    original_audio: AudioData,
-    answer_audio: AudioData,
-) -> list[ActivityRegion]:
-    return deletion.analyze_audio(original_audio, answer_audio)
-
-
-def analyze_activity_audio(
-    activity_type: str,
-    original_audio: AudioData,
-    answer_audio: AudioData,
-) -> list[ActivityRegion]:
-    if activity_type == "deletion":
-        return analyze_deletion_audio(original_audio, answer_audio)
-
-    if activity_type == "substitution":
-        return analyze_substitution_audio(original_audio, answer_audio)
-
-    raise DialogueError(f"Unsupported activity type: {activity_type}")
-
-
 def region_timing(
     audio: AudioData,
     start: int | None,
@@ -149,13 +128,7 @@ def build_token_metadata(
     changes: list[dict[str, Any]] = []
 
     for region in regions:
-        sound_label = region.name
-
-        if activity_type == "deletion" and region.role == "deletion":
-            sound_label = region.delete_sound or region.name
-
-        if activity_type == "substitution" and region.role == "discrepancy":
-            sound_label = region.from_sound or region.name
+        sound_label = format_phonemes(region.original_sound_labels) or region.name
 
         original_clip = clip_audio(
             original_audio,
@@ -202,7 +175,10 @@ def build_token_metadata(
             deletions.append(deletion)
 
         if activity_type == "substitution" and region.role == "discrepancy":
-            replacement_sound = region.to_sound or f"{region.name} answer"
+            replacement_sound = (
+                format_phonemes(region.answer_sound_labels)
+                or f"{region.name} answer"
+            )
             answer_clip = clip_audio(
                 answer_audio,
                 region.answer_start,
@@ -233,24 +209,18 @@ def build_token_metadata(
     return tokens, deletions, changes
 
 
-def fallback_regions(original_audio: AudioData, answer_audio: AudioData) -> list[ActivityRegion]:
-    return [
-        ActivityRegion(
-            name="sound1",
-            role="match",
-            original_start=original_audio.trim_start,
-            original_end=original_audio.trim_end,
-            answer_start=answer_audio.trim_start,
-            answer_end=answer_audio.trim_end,
-            similarity=1.0,
-        )
-    ]
-
-
-def prepared_activity_cache_path(activity_type: str, word: str, answer: str) -> Path:
+def prepared_activity_cache_path(
+    activity_type: str,
+    raw_activity: dict[str, Any],
+) -> Path:
     ACTIVITY_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    serialized_activity = json.dumps(
+        raw_activity,
+        ensure_ascii=False,
+        sort_keys=True,
+    )
     key = hash_text(
-        f"{cache_context()}\n{activity_type}\n{word.strip().lower()}\n{answer.strip().lower()}"
+        f"{cache_context()}\n{activity_type}\n{serialized_activity}"
     )
     return ACTIVITY_CACHE_DIR / f"{key}.json"
 
@@ -266,7 +236,26 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
     if not word or not answer:
         raise DialogueError("Activities need both `word` and `answer`.")
 
-    cache_path = prepared_activity_cache_path(activity_type, word, answer)
+    deleted_phonemes: tuple[str, ...] = ()
+    old_phonemes: tuple[str, ...] = ()
+    new_phonemes: tuple[str, ...] = ()
+
+    if activity_type == "deletion":
+        deleted_phonemes = parse_phoneme_sequence(
+            raw_activity.get("deletedPhonemes"),
+            "deletedPhonemes",
+        )
+    else:
+        old_phonemes = parse_phoneme_sequence(
+            raw_activity.get("oldPhonemes"),
+            "oldPhonemes",
+        )
+        new_phonemes = parse_phoneme_sequence(
+            raw_activity.get("newPhonemes"),
+            "newPhonemes",
+        )
+
+    cache_path = prepared_activity_cache_path(activity_type, raw_activity)
 
     if cache_path.is_file():
         return json.loads(cache_path.read_text(encoding="utf-8"))
@@ -274,10 +263,22 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
     activity_key = cache_path.stem
     original_audio = load_audio(word, synthesize_word_wav(word))
     answer_audio = load_audio(answer, synthesize_word_wav(answer))
-    regions = analyze_activity_audio(activity_type, original_audio, answer_audio)
+    original_breakdown = assess_word_phonemes(word, original_audio)
+    answer_breakdown = assess_word_phonemes(answer, answer_audio)
 
-    if not regions:
-        regions = fallback_regions(original_audio, answer_audio)
+    if activity_type == "deletion":
+        regions = build_deletion_regions(
+            original_breakdown,
+            answer_breakdown,
+            deleted_phonemes,
+        )
+    else:
+        regions = build_substitution_regions(
+            original_breakdown,
+            answer_breakdown,
+            old_phonemes,
+            new_phonemes,
+        )
 
     tokens, deletions, changes = build_token_metadata(
         activity_key,
@@ -289,10 +290,16 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
     prepared = {
         **raw_activity,
         "id": raw_activity.get("id") or f"{clean_file_part(word)}-{clean_file_part(answer)}",
-        "source": f"azure-audio-{activity_type}-breakdown",
+        "source": "azure-pronunciation-phoneme-breakdown",
         "type": activity_type,
         "word": word,
         "answer": answer,
+        "originalPhonemes": list(original_breakdown.symbols),
+        "answerPhonemes": list(answer_breakdown.symbols),
+        "phonemeMarkers": {
+            "original": marker_payload(original_breakdown),
+            "answer": marker_payload(answer_breakdown),
+        },
         "tokens": tokens,
     }
 
@@ -306,7 +313,11 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
             for deletion in deletions
             for label in deletion["soundLabels"]
         ]
-        prepared["deleteSound"] = raw_activity.get("deleteSound") or deletions[0]["sound"]
+        prepared["deleteSound"] = (
+            raw_activity.get("deleteSound")
+            or format_phonemes(deleted_phonemes)
+            or deletions[0]["sound"]
+        )
 
     if changes:
         prepared["changes"] = changes
@@ -314,8 +325,16 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
         prepared["replaceTokenId"] = changes[0]["id"]
         prepared["fromSoundLabels"] = changes[0]["fromSoundLabels"]
         prepared["toSoundLabels"] = changes[0]["toSoundLabels"]
-        prepared["fromSound"] = raw_activity.get("fromSound") or changes[0]["fromSound"]
-        prepared["toSound"] = raw_activity.get("toSound") or changes[0]["toSound"]
+        prepared["fromSound"] = (
+            raw_activity.get("fromSound")
+            or format_phonemes(old_phonemes)
+            or changes[0]["fromSound"]
+        )
+        prepared["toSound"] = (
+            raw_activity.get("toSound")
+            or format_phonemes(new_phonemes)
+            or changes[0]["toSound"]
+        )
         prepared["replaceFrom"] = prepared["fromSound"]
         prepared["replaceTo"] = prepared["toSound"]
 

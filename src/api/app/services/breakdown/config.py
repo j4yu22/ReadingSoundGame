@@ -3,7 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 
-BREAKDOWN_VERSION = "v11-deletion-layout-fallback"
+BREAKDOWN_VERSION = "v12-azure-phoneme-guided"
 
 
 @dataclass(frozen=True)
