@@ -23,20 +23,44 @@
     </section>
 
     <section class="debug-panel" aria-label="Debug subtitles and audio controls">
-      <div>
+      <div class="debug-output">
         <p class="debug-label">Arthur</p>
         <div id="subtitleBox" class="subtitle-box">Press Start.</div>
         <p id="statusText" class="status-text">Voice: idle</p>
       </div>
 
       <div class="settings-panel">
-        <label class="exercise-control" for="exerciseSelect">
-          <span>Exercise</span>
-          <select id="exerciseSelect">
-            <option value="deletion">Deletion</option>
-            <option value="substitution">Substitution</option>
-          </select>
-        </label>
+        <fieldset class="activity-picker">
+          <legend>Activity</legend>
+          <div class="activity-controls">
+            <label class="exercise-control level-control" for="levelSelect">
+              <span>Level</span>
+              <select id="levelSelect" disabled>
+                <option>Loading...</option>
+              </select>
+            </label>
+
+            <label class="exercise-control sublevel-control" for="sublevelSelect">
+              <span>Sublevel</span>
+              <select id="sublevelSelect" disabled></select>
+            </label>
+
+            <label class="exercise-control section-control" for="sectionSelect">
+              <span>Section</span>
+              <select id="sectionSelect" disabled></select>
+            </label>
+
+            <label class="exercise-control exercise-number-control" for="exerciseSelect">
+              <span>Exercise</span>
+              <select id="exerciseSelect" disabled></select>
+            </label>
+
+            <label class="exercise-control line-control" for="lineSelect">
+              <span>Line</span>
+              <select id="lineSelect" disabled></select>
+            </label>
+          </div>
+        </fieldset>
 
         <label class="volume-control" for="volumeSlider">
           <span>Volume</span>
@@ -47,6 +71,6 @@
     </section>
   </main>
 
-  <script src="scripts/app.js?v=stt-checkpoints-20260702c"></script>
+  <script src="scripts/app.js?v=exercise-catalog-20260722"></script>
 </body>
 </html>

@@ -210,6 +210,69 @@ def normalized_hint(phonemes: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(normalize_phoneme(symbol) for symbol in phonemes)
 
 
+def infer_change_phonemes(
+    original: WordPhonemeBreakdown,
+    answer: WordPhonemeBreakdown,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    original_symbols = normalized_symbols(original)
+    answer_symbols = normalized_symbols(answer)
+    prefix_length = 0
+
+    while (
+        prefix_length < len(original_symbols)
+        and prefix_length < len(answer_symbols)
+        and original_symbols[prefix_length] == answer_symbols[prefix_length]
+    ):
+        prefix_length += 1
+
+    suffix_length = 0
+    while (
+        suffix_length < len(original_symbols) - prefix_length
+        and suffix_length < len(answer_symbols) - prefix_length
+        and original_symbols[-(suffix_length + 1)] == answer_symbols[-(suffix_length + 1)]
+    ):
+        suffix_length += 1
+
+    original_end = len(original_symbols) - suffix_length
+    answer_end = len(answer_symbols) - suffix_length
+    return (
+        original.symbols[prefix_length:original_end],
+        answer.symbols[prefix_length:answer_end],
+    )
+
+
+def infer_deletion_phonemes(
+    original: WordPhonemeBreakdown,
+    answer: WordPhonemeBreakdown,
+) -> tuple[str, ...]:
+    deleted, inserted = infer_change_phonemes(original, answer)
+
+    if deleted and not inserted:
+        return deleted
+
+    raise DialogueError(
+        f'Could not infer one contiguous deletion from "{original.word}" '
+        f'{sequence_description(original.symbols)} to "{answer.word}" '
+        f'{sequence_description(answer.symbols)}.'
+    )
+
+
+def infer_substitution_phonemes(
+    original: WordPhonemeBreakdown,
+    answer: WordPhonemeBreakdown,
+) -> tuple[tuple[str, ...], tuple[str, ...]]:
+    old_phonemes, new_phonemes = infer_change_phonemes(original, answer)
+
+    if old_phonemes and new_phonemes:
+        return old_phonemes, new_phonemes
+
+    raise DialogueError(
+        f'Could not infer one contiguous substitution from "{original.word}" '
+        f'{sequence_description(original.symbols)} to "{answer.word}" '
+        f'{sequence_description(answer.symbols)}.'
+    )
+
+
 def subsequence_starts(
     sequence: tuple[str, ...],
     target: tuple[str, ...],

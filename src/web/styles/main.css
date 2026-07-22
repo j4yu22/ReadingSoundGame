@@ -126,9 +126,7 @@ button {
 .debug-panel {
   width: min(860px, 100%);
   display: grid;
-  grid-template-columns: 1fr minmax(220px, 300px);
   gap: 18px;
-  align-items: end;
   border: 1px solid var(--line);
   border-radius: 8px;
   background: rgba(24, 26, 23, 0.82);
@@ -166,7 +164,44 @@ button {
 
 .settings-panel {
   display: grid;
-  gap: 14px;
+  gap: 16px;
+  padding-top: 16px;
+  border-top: 1px solid var(--line);
+}
+
+.activity-picker {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.activity-picker legend {
+  margin-bottom: 10px;
+  padding: 0;
+  color: var(--text);
+  font-size: 0.92rem;
+  font-weight: 800;
+}
+
+.activity-controls {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.level-control,
+.sublevel-control {
+  grid-column: span 1;
+}
+
+.section-control,
+.exercise-number-control {
+  grid-column: span 2;
+}
+
+.line-control {
+  grid-column: 1 / -1;
 }
 
 .exercise-control {
@@ -186,6 +221,12 @@ button {
   color: var(--text);
   font: inherit;
   padding: 0 12px;
+}
+
+.exercise-control select:disabled {
+  color: #7f887a;
+  cursor: wait;
+  opacity: 0.72;
 }
 
 .exercise-control select:focus-visible {
@@ -401,6 +442,21 @@ button {
 
   .debug-panel {
     grid-template-columns: 1fr;
+  }
+
+  .activity-controls {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .level-control,
+  .sublevel-control,
+  .section-control,
+  .exercise-number-control {
+    grid-column: span 1;
+  }
+
+  .line-control {
+    grid-column: 1 / -1;
   }
 
   .token-row,

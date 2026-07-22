@@ -17,6 +17,8 @@ from app.services.phoneme_breakdown import (
     build_deletion_regions,
     build_substitution_regions,
     format_phonemes,
+    infer_deletion_phonemes,
+    infer_substitution_phonemes,
     marker_payload,
     parse_phoneme_sequence,
 )
@@ -240,12 +242,14 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
     old_phonemes: tuple[str, ...] = ()
     new_phonemes: tuple[str, ...] = ()
 
-    if activity_type == "deletion":
+    if activity_type == "deletion" and raw_activity.get("deletedPhonemes"):
         deleted_phonemes = parse_phoneme_sequence(
             raw_activity.get("deletedPhonemes"),
             "deletedPhonemes",
         )
-    else:
+    elif activity_type == "substitution" and (
+        raw_activity.get("oldPhonemes") or raw_activity.get("newPhonemes")
+    ):
         old_phonemes = parse_phoneme_sequence(
             raw_activity.get("oldPhonemes"),
             "oldPhonemes",
@@ -267,12 +271,22 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
     answer_breakdown = assess_word_phonemes(answer, answer_audio)
 
     if activity_type == "deletion":
+        if not deleted_phonemes:
+            deleted_phonemes = infer_deletion_phonemes(
+                original_breakdown,
+                answer_breakdown,
+            )
         regions = build_deletion_regions(
             original_breakdown,
             answer_breakdown,
             deleted_phonemes,
         )
     else:
+        if not old_phonemes and not new_phonemes:
+            old_phonemes, new_phonemes = infer_substitution_phonemes(
+                original_breakdown,
+                answer_breakdown,
+            )
         regions = build_substitution_regions(
             original_breakdown,
             answer_breakdown,
@@ -302,6 +316,12 @@ def prepare_activity(raw_activity: dict[str, Any], requested_type: str) -> dict[
         },
         "tokens": tokens,
     }
+
+    if activity_type == "deletion":
+        prepared["deletedPhonemes"] = list(deleted_phonemes)
+    else:
+        prepared["oldPhonemes"] = list(old_phonemes)
+        prepared["newPhonemes"] = list(new_phonemes)
 
     if deletions:
         prepared["deletions"] = deletions

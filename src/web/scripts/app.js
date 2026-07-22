@@ -5,7 +5,11 @@ const tokenRow = document.getElementById("tokenRow");
 const dropRow = document.getElementById("dropRow");
 const subtitleBox = document.getElementById("subtitleBox");
 const statusText = document.getElementById("statusText");
+const levelSelect = document.getElementById("levelSelect");
+const sublevelSelect = document.getElementById("sublevelSelect");
+const sectionSelect = document.getElementById("sectionSelect");
 const exerciseSelect = document.getElementById("exerciseSelect");
+const lineSelect = document.getElementById("lineSelect");
 const volumeSlider = document.getElementById("volumeSlider");
 const volumeValue = document.getElementById("volumeValue");
 
@@ -13,13 +17,13 @@ const LIVE_SERVER_PORTS = new Set(["5500", "5501"]);
 const API_BASE = LIVE_SERVER_PORTS.has(window.location.port)
   ? "http://127.0.0.1:5178"
   : "";
-const APP_VERSION = "stt-checkpoints-20260702c";
+const APP_VERSION = "exercise-catalog-20260722";
 const TOKEN_PLAYBACK_RATE = 0.5;
 const LISTEN_SAMPLE_RATE = 16000;
 const WORD_LISTEN_MS = 2200;
 const FINAL_LISTEN_MS = 2400;
 const TOKEN_LISTEN_ENABLED = false;
-let activityType = new URLSearchParams(window.location.search).get("type") || "deletion";
+const NO_SUBLEVEL_VALUE = "none";
 const voiceFlatPath = "M20 60 H500";
 const voiceRestPath = "M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500";
 const voiceSpikePaths = [
@@ -53,6 +57,7 @@ const fallbackActivity = {
 };
 
 let currentActivity = fallbackActivity;
+let activityCatalog = null;
 let activeToken = null;
 let activePointerId = null;
 let tokenIndex = 0;
@@ -734,38 +739,211 @@ function normalizeActivity(activity) {
   return normalized;
 }
 
-async function loadCurrentActivity() {
-  try {
-    const response = await fetch(
-      `${API_BASE}/api/activities/current?type=${encodeURIComponent(activityType)}`
-    );
+function titleCase(value) {
+  return String(value || "")
+    .replaceAll("-", " ")
+    .replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
 
-    if (!response.ok) {
-      throw new Error(`Activity load failed: ${response.status}`);
-    }
+function sublevelValue(sublevel) {
+  return sublevel === null || sublevel === undefined
+    ? NO_SUBLEVEL_VALUE
+    : String(sublevel);
+}
 
-    currentActivity = normalizeActivity(await response.json());
-  } catch (error) {
-    console.warn(error);
-    currentActivity = fallbackActivity;
+function setSelectOptions(select, items, preferredValue = "") {
+  select.replaceChildren();
+
+  items.forEach(({ value, label }) => {
+    const option = document.createElement("option");
+    option.value = String(value);
+    option.textContent = label;
+    select.appendChild(option);
+  });
+
+  const preferred = String(preferredValue ?? "");
+  if ([...select.options].some((option) => option.value === preferred)) {
+    select.value = preferred;
   }
+
+  select.disabled = items.length === 0;
+}
+
+function selectedLevelGroup() {
+  return activityCatalog?.levels?.find((group) => group.level === levelSelect.value) || null;
+}
+
+function selectedSublevelGroup() {
+  return selectedLevelGroup()?.sublevels?.find((group) => {
+    return sublevelValue(group.sublevel) === sublevelSelect.value;
+  }) || null;
+}
+
+function exercisesInSelectedSection() {
+  return (selectedSublevelGroup()?.exercises || [])
+    .filter((exercise) => exercise.section === sectionSelect.value)
+    .sort((left, right) => {
+      return String(left.exerciseNumber).localeCompare(
+        String(right.exerciseNumber),
+        undefined,
+        { numeric: true, sensitivity: "base" }
+      );
+    });
+}
+
+function selectedExerciseGroup() {
+  return exercisesInSelectedSection().find((exercise) => {
+    return String(exercise.exerciseNumber) === exerciseSelect.value;
+  }) || null;
+}
+
+function selectedLineActivity() {
+  return selectedExerciseGroup()?.lines?.find((line) => line.line === lineSelect.value) || null;
+}
+
+function populateLevelOptions(preferredValue = "") {
+  setSelectOptions(
+    levelSelect,
+    (activityCatalog?.levels || []).map((group) => ({
+      value: group.level,
+      label: `Level ${group.level}`
+    })),
+    preferredValue
+  );
+}
+
+function populateSublevelOptions(preferredValue = "") {
+  setSelectOptions(
+    sublevelSelect,
+    (selectedLevelGroup()?.sublevels || []).map((group) => ({
+      value: sublevelValue(group.sublevel),
+      label: group.sublevel === null ? "No sublevel" : `Sublevel ${group.sublevel}`
+    })),
+    preferredValue
+  );
+}
+
+function populateSectionOptions(preferredValue = "") {
+  const sections = [
+    ...new Set((selectedSublevelGroup()?.exercises || []).map((exercise) => exercise.section))
+  ];
+  setSelectOptions(
+    sectionSelect,
+    sections.map((section) => ({ value: section, label: titleCase(section) })),
+    preferredValue
+  );
+}
+
+function populateExerciseOptions(preferredValue = "") {
+  setSelectOptions(
+    exerciseSelect,
+    exercisesInSelectedSection().map((exercise) => ({
+      value: exercise.exerciseNumber,
+      label: `Exercise ${exercise.exerciseNumber}`
+    })),
+    preferredValue
+  );
+}
+
+function populateLineOptions(preferredValue = "") {
+  setSelectOptions(
+    lineSelect,
+    (selectedExerciseGroup()?.lines || []).map((line) => ({
+      value: line.line,
+      label: `${line.line}. ${line.word} -> ${line.answer} (${titleCase(line.type)})`
+    })),
+    preferredValue
+  );
+}
+
+function populateActivitySelectors(preferred = {}) {
+  populateLevelOptions(preferred.level);
+  populateSublevelOptions(preferred.sublevel);
+  populateSectionOptions(preferred.section);
+  populateExerciseOptions(preferred.exercise);
+  populateLineOptions(preferred.line);
+}
+
+function firstCatalogSelectionByType(activityType) {
+  for (const level of activityCatalog?.levels || []) {
+    for (const sublevel of level.sublevels || []) {
+      for (const exercise of sublevel.exercises || []) {
+        const line = (exercise.lines || []).find((candidate) => candidate.type === activityType);
+
+        if (line) {
+          return {
+            level: level.level,
+            sublevel: sublevelValue(sublevel.sublevel),
+            section: exercise.section,
+            exercise: String(exercise.exerciseNumber),
+            line: line.line
+          };
+        }
+      }
+    }
+  }
+
+  return {};
+}
+
+function selectionFromUrl() {
+  const params = new URLSearchParams(window.location.search);
+  const selection = {
+    level: params.get("level") || "",
+    sublevel: params.get("sublevel") || NO_SUBLEVEL_VALUE,
+    section: params.get("section") || "",
+    exercise: params.get("exercise") || "",
+    line: params.get("line") || ""
+  };
+
+  if (!selection.level && params.get("type")) {
+    return firstCatalogSelectionByType(params.get("type"));
+  }
+
+  return selection;
+}
+
+function currentCatalogSelection() {
+  const line = selectedLineActivity();
+
+  if (!line) {
+    return null;
+  }
+
+  return {
+    level: levelSelect.value,
+    sublevel: sublevelSelect.value,
+    section: sectionSelect.value,
+    exercise: exerciseSelect.value,
+    line: lineSelect.value,
+    type: line.type,
+    word: line.word,
+    answer: line.answer
+  };
 }
 
 function updateExerciseUrl() {
-  const url = new URL(window.location.href);
-
-  if (activityType === "deletion") {
-    url.searchParams.delete("type");
-  } else {
-    url.searchParams.set("type", activityType);
+  const selection = currentCatalogSelection();
+  if (!selection) {
+    return;
   }
 
+  const url = new URL(window.location.href);
+  url.searchParams.set("level", selection.level);
+  if (selection.sublevel === NO_SUBLEVEL_VALUE) {
+    url.searchParams.delete("sublevel");
+  } else {
+    url.searchParams.set("sublevel", selection.sublevel);
+  }
+  url.searchParams.set("section", selection.section);
+  url.searchParams.set("exercise", selection.exercise);
+  url.searchParams.set("line", selection.line);
+  url.searchParams.delete("type");
   window.history.replaceState({}, "", url);
 }
 
-async function changeExerciseType(nextType) {
+function resetActivitySelection() {
   activityRunId += 1;
-  activityType = nextType;
   updateExerciseUrl();
   setSubtitle("Press Start.");
   startButton.disabled = false;
@@ -776,8 +954,65 @@ async function changeExerciseType(nextType) {
   }
 
   stopLiveVoice();
-  await loadCurrentActivity();
-  buildActivity(false);
+  activityStage.classList.remove("tokens-visible");
+  tokenRow.replaceChildren();
+  dropRow.replaceChildren();
+  setStatus("idle");
+}
+
+async function loadActivityCatalog() {
+  const response = await fetch(`${API_BASE}/api/activities/catalog`);
+
+  if (!response.ok) {
+    throw new Error(`Exercise catalog load failed: ${response.status}`);
+  }
+
+  activityCatalog = await response.json();
+  if (!Array.isArray(activityCatalog.levels) || !activityCatalog.levels.length) {
+    throw new Error("Exercise catalog has no levels.");
+  }
+}
+
+async function initializeActivityPicker() {
+  startButton.disabled = true;
+  setStatus("loading activities");
+
+  try {
+    await loadActivityCatalog();
+    populateActivitySelectors(selectionFromUrl());
+    resetActivitySelection();
+  } catch (error) {
+    console.error(error);
+    setSubtitle(error instanceof Error ? error.message : String(error));
+    setStatus("activity catalog unavailable");
+  }
+}
+
+async function loadCurrentActivity() {
+  const selection = currentCatalogSelection();
+  if (!selection) {
+    throw new Error("Select an activity line first.");
+  }
+
+  const params = new URLSearchParams({
+    type: selection.type,
+    level: selection.level,
+    section: selection.section,
+    exercise: selection.exercise,
+    line: selection.line
+  });
+
+  if (selection.sublevel !== NO_SUBLEVEL_VALUE) {
+    params.set("sublevel", selection.sublevel);
+  }
+
+  const response = await fetch(`${API_BASE}/api/activities/current?${params}`);
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({}));
+    throw new Error(payload.detail || `Activity load failed: ${response.status}`);
+  }
+
+  currentActivity = normalizeActivity(await response.json());
 }
 
 function tokenElements() {
@@ -1174,7 +1409,23 @@ async function startActivity() {
   activityRunId += 1;
   const runId = activityRunId;
   startButton.disabled = true;
-  await loadCurrentActivity();
+  setSubtitle("Loading activity...");
+  setStatus("preparing activity");
+
+  try {
+    await loadCurrentActivity();
+  } catch (error) {
+    console.error(error);
+    setSubtitle(error instanceof Error ? error.message : String(error));
+    setStatus("activity unavailable");
+    startButton.disabled = false;
+    return;
+  }
+
+  if (runId !== activityRunId) {
+    return;
+  }
+
   buildActivity(true);
   // await playArthurLine("welcome");
   await playArthurLine("activity_start", activityVariables());
@@ -1211,13 +1462,31 @@ async function startActivity() {
 }
 
 startButton.addEventListener("click", startActivity);
-exerciseSelect.addEventListener("change", () => {
-  void changeExerciseType(exerciseSelect.value);
+levelSelect.addEventListener("change", () => {
+  populateSublevelOptions();
+  populateSectionOptions();
+  populateExerciseOptions();
+  populateLineOptions();
+  resetActivitySelection();
 });
+sublevelSelect.addEventListener("change", () => {
+  populateSectionOptions();
+  populateExerciseOptions();
+  populateLineOptions();
+  resetActivitySelection();
+});
+sectionSelect.addEventListener("change", () => {
+  populateExerciseOptions();
+  populateLineOptions();
+  resetActivitySelection();
+});
+exerciseSelect.addEventListener("change", () => {
+  populateLineOptions();
+  resetActivitySelection();
+});
+lineSelect.addEventListener("change", resetActivitySelection);
 volumeSlider.addEventListener("input", updateVolumeLabel);
 
-exerciseSelect.value = activityType;
 setVoiceSpeaking(false);
-void changeExerciseType(activityType);
+void initializeActivityPicker();
 updateVolumeLabel();
-setStatus("idle");

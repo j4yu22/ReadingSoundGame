@@ -8,6 +8,8 @@ from app.services.phoneme_breakdown import (
     WordPhonemeBreakdown,
     build_deletion_regions,
     build_substitution_regions,
+    infer_deletion_phonemes,
+    infer_substitution_phonemes,
     marker_payload,
     normalize_phoneme,
     parse_phoneme_sequence,
@@ -77,6 +79,24 @@ class PhonemeBreakdownTests(unittest.TestCase):
         self.assertEqual(regions[1].original_sound_labels, ("k",))
         self.assertEqual(regions[1].answer_sound_labels, ("m",))
         self.assertEqual(regions[2].original_sound_labels, ("ɪ", "ŋ"))
+
+    def test_infers_deleted_phonemes_from_word_sequences(self) -> None:
+        original = word_breakdown("birthday", ["b", "er", "th", "d", "ay"])
+        answer = word_breakdown("day", ["d", "ay"])
+
+        self.assertEqual(
+            infer_deletion_phonemes(original, answer),
+            ("b", "er", "th"),
+        )
+
+    def test_infers_substitution_phonemes_from_word_sequences(self) -> None:
+        original = word_breakdown("wood", ["w", "oo", "d"])
+        answer = word_breakdown("good", ["g", "oo", "d"])
+
+        self.assertEqual(
+            infer_substitution_phonemes(original, answer),
+            (("w",), ("g",)),
+        )
 
     def test_supports_deletions_at_word_edges(self) -> None:
         cases = (

@@ -1,8 +1,17 @@
-# Activity phoneme fields
+# Activity data
 
-Every activity supplies the original `word`, the `answer`, and the IPA phonemes
-that change. Use one array entry per phoneme. The IPA values in
-`test/phoneme.json` are the reference list.
+`exercises.json` is the main activity catalog. It organizes activities by level,
+sublevel, section, exercise number, and line. Each line supplies the original
+`word`, the `answer`, its activity `type`, the printed `removedPart`, and the
+printed `replacementPart` when applicable.
+
+The backend uses Azure pronunciation assessment to identify the timed phonemes
+in both words. For catalog activities, it infers the contiguous deleted or
+substituted phoneme span by comparing those two sequences.
+
+The smaller `deletion.json` and `substitution.json` files remain available for
+focused testing. They may provide explicit IPA hints. Use one array entry per
+phoneme; the IPA values in `test/phoneme.json` are the reference list.
 
 Deletion example:
 
