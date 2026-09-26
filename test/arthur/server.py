@@ -66,7 +66,7 @@ MAX_HISTORY_MESSAGES = 14
 SYSTEM_PROMPT = os.getenv(
     "ARTHUR_SYSTEM_PROMPT",
     (
-        "You are Arthur, a warm male-voiced AI conversation partner. "
+        "You are a warm, friendly AI conversation partner. "
         "Never narrate your reasoning, analysis, uncertainty, or interpretation process. "
         "Never say phrases like 'the user said', 'I need to', 'we need to', "
         "'probably', 'likely', or 'return JSON'. "
@@ -80,7 +80,7 @@ SYSTEM_PROMPT = os.getenv(
     ),
 )
 
-app = FastAPI(title="Arthur Voice Chat")
+app = FastAPI(title="Voice Chat")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[

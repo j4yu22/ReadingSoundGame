@@ -3,13 +3,33 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Reading Sound Game</title>
-  <link rel="stylesheet" href="styles/main.css" />
+  <meta name="theme-color" content="#287a67" />
+  <title>Reading Sound Games</title>
+  <link rel="stylesheet" href="styles/main.css?v=reader-theme-20260926" />
 </head>
 <body>
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
+      <span>Reading Sound Games<small>Listen. Play. Discover.</small></span>
+    </div>
+    <span class="practice-badge">Sound practice</span>
+  </header>
+
   <main class="game" aria-label="Reading Sound Game">
-    <section class="voice-panel" aria-label="Arthur voice">
-      <svg id="voiceLine" class="voice-line" viewBox="0 0 520 120" role="img" aria-label="Arthur voice line">
+    <header class="lesson-heading">
+      <div>
+        <p class="eyebrow">A little listening. A big discovery.</p>
+        <h1>Let’s play with sounds.</h1>
+        <p>Listen to the voice, then move the sound tokens to explore each word.</p>
+      </div>
+      <span class="lesson-emblem" aria-hidden="true">Aa</span>
+    </header>
+
+    <section class="practice-card" aria-label="Sound practice">
+    <section class="voice-panel" aria-label="Voice">
+      <p class="eyebrow">Listen to the voice</p>
+      <svg id="voiceLine" class="voice-line" viewBox="0 0 520 120" role="img" aria-label="Voice waveform">
         <path class="voice-glow" d="M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500" />
         <path class="voice-path" d="M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500" />
       </svg>
@@ -18,15 +38,17 @@
     <button id="startButton" class="start-button" type="button">Start</button>
 
     <section id="activityStage" class="activity-stage" aria-label="Sound token activity">
+      <p class="stage-hint">Your sound tokens will appear here.</p>
       <div id="tokenRow" class="token-row" aria-label="Sound tokens"></div>
       <div id="dropRow" class="drop-row" aria-label="Token drop row"></div>
     </section>
+    </section>
 
-    <section class="debug-panel" aria-label="Debug subtitles and audio controls">
+    <section class="debug-panel" aria-label="Voice instructions and activity settings">
       <div class="debug-output">
-        <p class="debug-label">Arthur</p>
-        <div id="subtitleBox" class="subtitle-box">Press Start.</div>
-        <p id="statusText" class="status-text">Voice: idle</p>
+        <p class="debug-label">Voice</p>
+        <div id="subtitleBox" class="subtitle-box" aria-live="polite">Press Start.</div>
+        <p id="statusText" class="status-text" role="status">Voice: idle</p>
       </div>
 
       <div class="settings-panel">
@@ -71,6 +93,6 @@
     </section>
   </main>
 
-  <script src="scripts/app.js?v=exercise-catalog-20260722"></script>
+  <script src="scripts/app.js?v=voice-labels-20260926"></script>
 </body>
 </html>

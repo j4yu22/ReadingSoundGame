@@ -538,7 +538,7 @@ async function fetchDialogueAudio(lineId, variables = {}) {
 
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
-    throw new Error(payload.detail || `Arthur voice failed: ${response.status}`);
+    throw new Error(payload.detail || `Voice failed: ${response.status}`);
   }
 
   return {
@@ -661,7 +661,7 @@ async function playAudioBlob(audioBlob, options = {}) {
       currentAudio = null;
       stopLiveVoice();
       setStatus("playback failed");
-      reject(new Error("Arthur audio playback failed"));
+      reject(new Error("Voice audio playback failed"));
     };
 
     audio.play().catch((error) => {

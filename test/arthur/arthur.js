@@ -63,7 +63,7 @@ function appendLine(role, text) {
 
   const speaker = document.createElement("div");
   speaker.className = "speaker";
-  speaker.textContent = role === "user" ? "You" : "Arthur";
+  speaker.textContent = role === "user" ? "You" : "Voice";
 
   const body = document.createElement("div");
   body.className = "text";
@@ -439,7 +439,7 @@ async function loadConfig() {
     setPill(proxyStatus, "Backend offline", "bad");
     setPill(whisperStatus, "Whisper", "bad");
     setPill(ttsStatus, "TTS", "bad");
-    setSubtitle("Start Arthur backend with .\\run.ps1, then refresh.");
+    setSubtitle("Start the voice backend with .\\run.ps1, then refresh.");
   }
 }
 
@@ -465,7 +465,7 @@ recordBtn.addEventListener("click", async () => {
 
 resetBtn.addEventListener("click", resetConversation);
 previewVoiceBtn.addEventListener("click", () => {
-  void speak("This is Arthur's voice.");
+  void speak("This is the current voice.");
 });
 volumeSlider.addEventListener("input", updateRanges);
 rateSlider.addEventListener("input", updateRanges);
