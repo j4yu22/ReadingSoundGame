@@ -20,7 +20,7 @@ const LIVE_SERVER_PORTS = new Set(["5500", "5501"]);
 const API_BASE = LIVE_SERVER_PORTS.has(window.location.port)
   ? "http://127.0.0.1:5178"
   : "";
-const APP_VERSION = "responsive-layout-20261003";
+const APP_VERSION = "microphone-windows-20261003";
 const TOKEN_PLAYBACK_RATE = 0.5;
 const LISTEN_SAMPLE_RATE = 16000;
 const WORD_LISTEN_MS = 2200;
@@ -73,7 +73,7 @@ let audioContext = null;
 let currentAudio = null;
 let currentVolume = Number(volumeSlider.value);
 let activityRunId = 0;
-let micStream = null;
+let activeSpeechCapture = null;
 let activeTokenCapture = null;
 let tokenLayoutFrame = null;
 
@@ -164,15 +164,11 @@ async function ensureAudioContext() {
 }
 
 async function getMicStream() {
-  if (micStream) {
-    return micStream;
-  }
-
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("Microphone recording is not supported in this browser.");
   }
 
-  micStream = await navigator.mediaDevices.getUserMedia({
+  return navigator.mediaDevices.getUserMedia({
     audio: {
       echoCancellation: true,
       noiseSuppression: true,
@@ -180,8 +176,10 @@ async function getMicStream() {
     },
     video: false
   });
+}
 
-  return micStream;
+function cancelSpeechCapture() {
+  activeSpeechCapture?.discard();
 }
 
 function mergeAudioBuffers(buffers, totalLength) {
@@ -264,45 +262,43 @@ function encodeWav(samples, sampleRate) {
 }
 
 async function startSpeechCapture(label) {
-  const context = await ensureAudioContext();
-  const stream = await getMicStream();
-  const source = context.createMediaStreamSource(stream);
-  const processor = context.createScriptProcessor(4096, 1, 1);
-  const mutedOutput = context.createGain();
+  cancelSpeechCapture();
+  let context = null;
+  let stream = null;
+  let source = null;
+  let processor = null;
+  let mutedOutput = null;
   const buffers = [];
   let totalLength = 0;
   let stopped = false;
 
-  mutedOutput.gain.value = 0;
-  processor.onaudioprocess = (event) => {
-    if (stopped) {
-      return;
+  function cleanup() {
+    stopped = true;
+    // Disconnecting Web Audio alone leaves the browser's microphone active.
+    stream?.getTracks().forEach((track) => track.stop());
+    stream = null;
+    if (processor) {
+      processor.onaudioprocess = null;
+      processor.disconnect();
+      processor = null;
     }
+    source?.disconnect();
+    source = null;
+    mutedOutput?.disconnect();
+    mutedOutput = null;
+    if (activeSpeechCapture === session) {
+      activeSpeechCapture = null;
+    }
+  }
 
-    const input = event.inputBuffer.getChannelData(0);
-    buffers.push(new Float32Array(input));
-    totalLength += input.length;
-  };
-
-  source.connect(processor);
-  processor.connect(mutedOutput);
-  mutedOutput.connect(context.destination);
-  setStatus(`listening ${label}`);
-
-  return {
+  const session = {
     label,
-    discard() {
-      stopped = true;
-      source.disconnect();
-      processor.disconnect();
-      mutedOutput.disconnect();
+    get stopped() {
+      return stopped;
     },
+    discard: cleanup,
     stop() {
-      stopped = true;
-      source.disconnect();
-      processor.disconnect();
-      mutedOutput.disconnect();
-
+      cleanup();
       const merged = mergeAudioBuffers(buffers, totalLength);
       const downsampled = downsampleBuffer(
         merged,
@@ -313,6 +309,40 @@ async function startSpeechCapture(label) {
       return encodeWav(downsampled, LISTEN_SAMPLE_RATE);
     }
   };
+
+  // Register before awaiting permission so reset can cancel a pending request.
+  activeSpeechCapture = session;
+  try {
+    context = await ensureAudioContext();
+    if (stopped || document.hidden) {
+      throw new DOMException("Listening canceled", "AbortError");
+    }
+    stream = await getMicStream();
+    if (stopped || document.hidden) {
+      throw new DOMException("Listening canceled", "AbortError");
+    }
+    source = context.createMediaStreamSource(stream);
+    processor = context.createScriptProcessor(4096, 1, 1);
+    mutedOutput = context.createGain();
+    mutedOutput.gain.value = 0;
+    processor.onaudioprocess = (event) => {
+      if (stopped) {
+        return;
+      }
+      const input = event.inputBuffer.getChannelData(0);
+      buffers.push(new Float32Array(input));
+      totalLength += input.length;
+    };
+
+    source.connect(processor);
+    processor.connect(mutedOutput);
+    mutedOutput.connect(context.destination);
+    setStatus(`listening ${label}`);
+    return session;
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
 }
 
 function defaultListenResult(label, expected, mode, error = "") {
@@ -329,7 +359,9 @@ function defaultListenResult(label, expected, mode, error = "") {
   };
 }
 
-async function postListenCheck(audioBlob, { label, expected = "", mode = "presence" }) {
+async function postListenCheck(audioBlob, {
+  label, expected = "", mode = "presence", runId = activityRunId
+}) {
   const params = new URLSearchParams({
     expected,
     mode
@@ -368,7 +400,9 @@ async function postListenCheck(audioBlob, { label, expected = "", mode = "presen
   });
 
   const heard = result.recognizedText || "nothing";
-  setStatus(result.speechDetected ? `heard ${heard}` : "no speech heard");
+  if (runId === activityRunId) {
+    setStatus(result.speechDetected ? `heard ${heard}` : "no speech heard");
+  }
   return result;
 }
 
@@ -378,13 +412,26 @@ async function listenForWindow({
   mode = "presence",
   durationMs = WORD_LISTEN_MS
 }) {
+  const runId = activityRunId;
+  let session = null;
   try {
-    const session = await startSpeechCapture(label);
+    session = await startSpeechCapture(label);
+    if (session.stopped || runId !== activityRunId) {
+      return defaultListenResult(label, expected, mode);
+    }
     setSubtitle(`Listening...`);
     await wait(durationMs);
+    if (session.stopped || runId !== activityRunId) {
+      return defaultListenResult(label, expected, mode);
+    }
     const audioBlob = session.stop();
-    return await postListenCheck(audioBlob, { label, expected, mode });
+    setSubtitle("Checking your answer...");
+    setStatus(`checking ${label}`);
+    return await postListenCheck(audioBlob, { label, expected, mode, runId });
   } catch (error) {
+    if (error.name === "AbortError" || runId !== activityRunId) {
+      return defaultListenResult(label, expected, mode);
+    }
     console.warn("[Arthur listen]", label, error);
     setStatus("listen unavailable");
     return defaultListenResult(
@@ -393,6 +440,8 @@ async function listenForWindow({
       mode,
       error instanceof Error ? error.message : String(error)
     );
+  } finally {
+    session?.discard();
   }
 }
 
@@ -454,10 +503,12 @@ async function finishTokenSpeechCapture(index, expected) {
 
   activeTokenCapture = null;
 
+  const runId = activityRunId;
+  let session = null;
   try {
-    const session = await capture.sessionPromise;
+    session = await capture.sessionPromise;
 
-    if (capture.canceled) {
+    if (capture.canceled || session.stopped || runId !== activityRunId) {
       session.discard();
       return defaultListenResult(capture.label, expected, "presence");
     }
@@ -466,9 +517,13 @@ async function finishTokenSpeechCapture(index, expected) {
     return await postListenCheck(audioBlob, {
       label: capture.label,
       expected,
-      mode: "presence"
+      mode: "presence",
+      runId
     });
   } catch (error) {
+    if (error.name === "AbortError" || runId !== activityRunId) {
+      return defaultListenResult(capture.label, expected, "presence");
+    }
     console.warn("[Arthur listen]", capture.label, error);
     setStatus("listen unavailable");
     return defaultListenResult(
@@ -477,6 +532,8 @@ async function finishTokenSpeechCapture(index, expected) {
       "presence",
       error instanceof Error ? error.message : String(error)
     );
+  } finally {
+    session?.discard();
   }
 }
 
@@ -952,6 +1009,7 @@ function updateExerciseUrl() {
 
 function resetActivitySelection() {
   activityRunId += 1;
+  cancelSpeechCapture();
   cancelActiveDrag();
   updateExerciseUrl();
   setSubtitle("Press Start.");
@@ -1503,6 +1561,7 @@ async function finishActivity() {
 
 async function startActivity() {
   activityRunId += 1;
+  cancelSpeechCapture();
   const runId = activityRunId;
   startButton.disabled = true;
   setSubtitle("Loading activity...");
@@ -1585,6 +1644,12 @@ volumeSlider.addEventListener("input", updateVolumeLabel);
 desktopLayout.addEventListener("change", updateSettingsLayout);
 window.addEventListener("resize", scheduleTokenAlignment);
 window.addEventListener("orientationchange", scheduleTokenAlignment);
+window.addEventListener("pagehide", resetActivitySelection);
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden && activeSpeechCapture) {
+    resetActivitySelection();
+  }
+});
 
 if (typeof ResizeObserver !== "undefined") {
   const tokenLayoutObserver = new ResizeObserver(scheduleTokenAlignment);
