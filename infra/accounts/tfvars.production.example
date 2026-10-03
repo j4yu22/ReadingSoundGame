@@ -1,0 +1,33 @@
+# Verified read-only against the current Oregon deployment on 2026-10-03.
+# Review a complete plan before applying. No public signup/child collection.
+aws_region   = "us-west-2"
+expected_account_id = "029099142578"
+environment  = "production"
+project_name = "reading-sound-game"
+vpc_id       = "vpc-03514939d27a9189c"
+
+# Existing default subnets occupy 172.31.{0,16,32,48}.0/20.
+# These reviewed unused ranges get a separate local-only route table.
+private_db_subnet_ids = []
+private_db_subnets = {
+  a = { cidr_block = "172.31.64.0/24", availability_zone = "us-west-2a" }
+  b = { cidr_block = "172.31.65.0/24", availability_zone = "us-west-2b" }
+}
+
+app_security_group_id          = "sg-0f9269ca8a8ef6fff"
+app_iam_role_name              = "reading-sound-game-ec2-role"
+migrator_iam_role_name         = "reading-sound-game-migrations"
+trusted_migration_operator_arn = "arn:aws:iam::029099142578:user/Jay"
+site_origin                   = "https://readingsoundgames.com"
+# Available when checked on 2026-10-03; AWS validates uniqueness on creation.
+cognito_domain_prefix         = "reading-sound-game-029099142578"
+parent_signup_enabled         = false
+deletion_protection           = true
+db_instance_class             = "db.t4g.small"
+multi_az                      = false
+
+# No verified SES identities currently exist. Provisioning does not send emails.
+ses_identity_arn           = null
+auth_email_from            = null
+privacy_email_identity_arn = null
+privacy_email_from         = null

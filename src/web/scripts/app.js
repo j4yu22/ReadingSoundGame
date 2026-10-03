@@ -16,11 +16,8 @@ const activitySettings = document.getElementById("activitySettings");
 const activitySummary = document.getElementById("activitySummary");
 const desktopLayout = window.matchMedia("(min-width: 960px)");
 
-const LIVE_SERVER_PORTS = new Set(["5500", "5501"]);
-const API_BASE = LIVE_SERVER_PORTS.has(window.location.port)
-  ? "http://127.0.0.1:5178"
-  : "";
-const APP_VERSION = "microphone-windows-20261003";
+// Serve the page through FastAPI so private requests use same-origin cookies.
+const API_BASE = "";
 const TOKEN_PLAYBACK_RATE = 0.5;
 const LISTEN_SAMPLE_RATE = 16000;
 const WORD_LISTEN_MS = 2200;
@@ -76,12 +73,66 @@ let activityRunId = 0;
 let activeSpeechCapture = null;
 let activeTokenCapture = null;
 let tokenLayoutFrame = null;
+let practiceSessionId = null;
+let practiceChildId = "";
+let practiceAttemptId = null;
+let guestAttemptActive = false;
+let activityController = new AbortController();
 
-console.info("[Arthur app]", {
-  version: APP_VERSION,
-  apiBase: API_BASE,
-  script: document.currentScript?.src || "unknown"
-});
+function assertPractice(runId = activityRunId) {
+  if (!window.ParentAccount?.ready || runId !== activityRunId || document.hidden) {
+    throw new DOMException("Practice canceled", "AbortError");
+  }
+}
+
+async function practiceFetch(url, options = {}) {
+  assertPractice();
+  if (window.ParentAccount.guest) {
+    const response = await fetch(url, { ...options, signal: activityController.signal, credentials: "omit", cache: "no-store" });
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(typeof payload.detail === "string" ? payload.detail : "Practice is temporarily unavailable. Please try again.");
+    }
+    return response;
+  }
+  return window.ParentAccount.request(url, { ...options, signal: activityController.signal });
+}
+
+async function finishAttempt(outcome) {
+  const id = practiceAttemptId;
+  practiceAttemptId = null;
+  guestAttemptActive = false;
+  if (!id) return;
+  try {
+    await window.ParentAccount.json(`/api/practice/attempts/${encodeURIComponent(id)}/finish`, "POST", { outcome });
+  } catch { /* A revoked or expired session must not resume practice. */ }
+}
+
+async function beginAttempt(runId) {
+  assertPractice(runId);
+  if (window.ParentAccount.guest) {
+    guestAttemptActive = true;
+    return;
+  }
+  const childId = window.ParentAccount.childId;
+  if (practiceChildId !== childId) {
+    practiceSessionId = null;
+    practiceChildId = childId;
+  }
+  if (!practiceSessionId) {
+    const session = await window.ParentAccount.json("/api/practice/sessions", "POST", { child_id: childId, request_id: crypto.randomUUID() });
+    assertPractice(runId);
+    practiceSessionId = session.id;
+  }
+  const chosen = currentCatalogSelection();
+  const selection = Object.fromEntries(["level", "sublevel", "section", "exercise", "line"].map((key) => [key, chosen[key]]));
+  const attempt = await window.ParentAccount.json("/api/practice/attempts", "POST", { session_id: practiceSessionId, request_id: crypto.randomUUID(), selection });
+  if (runId !== activityRunId || !window.ParentAccount.ready) {
+    void window.ParentAccount.json(`/api/practice/attempts/${encodeURIComponent(attempt.id)}/finish`, "POST", { outcome: "abandoned" }).catch(() => {});
+  }
+  assertPractice(runId);
+  practiceAttemptId = attempt.id;
+}
 
 function setSubtitle(text) {
   subtitleBox.textContent = text;
@@ -122,8 +173,18 @@ function setVoiceSpeaking(isSpeaking, pathData = voiceRestPath) {
 }
 
 function wait(ms) {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, ms);
+  const signal = activityController.signal;
+  return new Promise((resolve, reject) => {
+    const abort = () => {
+      window.clearTimeout(timer);
+      reject(new DOMException("Practice canceled", "AbortError"));
+    };
+    const timer = window.setTimeout(() => {
+      signal.removeEventListener("abort", abort);
+      resolve();
+    }, ms);
+    signal.addEventListener("abort", abort, { once: true });
+    if (signal.aborted) abort();
   });
 }
 
@@ -133,7 +194,9 @@ function apiUrl(path) {
   }
 
   if (/^https?:\/\//i.test(path)) {
-    return path;
+    const url = new URL(path);
+    if (url.origin !== window.location.origin) throw new Error("Unsupported audio source.");
+    return url.href;
   }
 
   if (path.startsWith("/api")) {
@@ -164,6 +227,8 @@ async function ensureAudioContext() {
 }
 
 async function getMicStream() {
+  assertPractice();
+  if (!practiceAttemptId && !guestAttemptActive) throw new DOMException("Practice not ready", "AbortError");
   if (!navigator.mediaDevices?.getUserMedia) {
     throw new Error("Microphone recording is not supported in this browser.");
   }
@@ -262,6 +327,7 @@ function encodeWav(samples, sampleRate) {
 }
 
 async function startSpeechCapture(label) {
+  assertPractice();
   cancelSpeechCapture();
   let context = null;
   let stream = null;
@@ -349,12 +415,9 @@ function defaultListenResult(label, expected, mode, error = "") {
   return {
     label,
     mode,
-    expected,
-    recognizedText: "",
     speechDetected: false,
     correct: false,
     scores: {},
-    words: [],
     error
   };
 }
@@ -362,46 +425,27 @@ function defaultListenResult(label, expected, mode, error = "") {
 async function postListenCheck(audioBlob, {
   label, expected = "", mode = "presence", runId = activityRunId
 }) {
-  const params = new URLSearchParams({
-    expected,
-    mode
-  });
-  const startedAt = performance.now();
-
-  console.info("[Arthur listen] upload", {
-    label,
-    expected,
-    mode,
-    bytes: audioBlob.size
-  });
-
-  const response = await fetch(`${API_BASE}/api/speech/listen-check?${params}`, {
+  assertPractice(runId);
+  if (!practiceAttemptId && !guestAttemptActive) throw new DOMException("Practice canceled", "AbortError");
+  const params = window.ParentAccount.guest
+    ? new URLSearchParams({ expected, mode })
+    : new URLSearchParams({ attempt_id: practiceAttemptId, mode });
+  const response = await practiceFetch(`${API_BASE}/api/speech/listen-check?${params}`, {
     method: "POST",
     headers: { "Content-Type": "audio/wav" },
     body: audioBlob
   });
 
-  const elapsedMs = Math.round(performance.now() - startedAt);
-
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(
-      payload.detail || `Listen check failed: ${response.status} after ${elapsedMs}ms`
+      payload.detail || "Speech assessment is unavailable. Please try again."
     );
   }
 
   const result = await response.json();
-  console.info("[Arthur listen] result", {
-    label,
-    expected,
-    mode,
-    elapsedMs,
-    ...result
-  });
-
-  const heard = result.recognizedText || "nothing";
   if (runId === activityRunId) {
-    setStatus(result.speechDetected ? `heard ${heard}` : "no speech heard");
+    setStatus(result.speechDetected ? "speech detected" : "no speech detected");
   }
   return result;
 }
@@ -432,7 +476,7 @@ async function listenForWindow({
     if (error.name === "AbortError" || runId !== activityRunId) {
       return defaultListenResult(label, expected, mode);
     }
-    console.warn("[Arthur listen]", label, error);
+    await finishAttempt("microphone_unavailable");
     setStatus("listen unavailable");
     return defaultListenResult(
       label,
@@ -468,7 +512,7 @@ function beginTokenSpeechCapture(index, expected) {
 
   activeTokenCapture = capture;
   capture.sessionPromise.catch((error) => {
-    console.warn("[Arthur listen]", label, error);
+    setStatus("microphone unavailable");
   });
 }
 
@@ -524,7 +568,6 @@ async function finishTokenSpeechCapture(index, expected) {
     if (error.name === "AbortError" || runId !== activityRunId) {
       return defaultListenResult(capture.label, expected, "presence");
     }
-    console.warn("[Arthur listen]", capture.label, error);
     setStatus("listen unavailable");
     return defaultListenResult(
       capture.label,
@@ -591,7 +634,7 @@ function stopLiveVoice() {
 async function fetchDialogueAudio(lineId, variables = {}) {
   setStatus(`requesting ${lineId}`);
 
-  const response = await fetch(`${API_BASE}/api/speech/line`, {
+  const response = await practiceFetch(`${API_BASE}/api/speech/line`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ line_id: lineId, variables })
@@ -622,7 +665,7 @@ async function fetchTokenClipAudio(token) {
   if (token.clipUrl) {
     setStatus(`requesting ${token.id || token.sound}`);
 
-    const response = await fetch(apiUrl(token.clipUrl));
+    const response = await practiceFetch(apiUrl(token.clipUrl));
 
     if (!response.ok) {
       throw new Error(`Token clip failed: ${response.status}`);
@@ -636,7 +679,7 @@ async function fetchTokenClipAudio(token) {
 
   setStatus(`requesting clip ${token.sound}`);
 
-  const response = await fetch(`${API_BASE}/api/speech/token-clip`, {
+  const response = await practiceFetch(`${API_BASE}/api/speech/token-clip`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -665,7 +708,7 @@ async function fetchReplacementClipAudio(token) {
 
   setStatus(`requesting replacement ${token.id || token.sound}`);
 
-  const response = await fetch(apiUrl(token.replacementClipUrl));
+  const response = await practiceFetch(apiUrl(token.replacementClipUrl));
 
   if (!response.ok) {
     throw new Error(`Replacement clip failed: ${response.status}`);
@@ -678,12 +721,16 @@ async function fetchReplacementClipAudio(token) {
 }
 
 async function playAudioBlob(audioBlob, options = {}) {
+  const runId = activityRunId;
+  const signal = activityController.signal;
+  assertPractice(runId);
   if (currentAudio) {
     currentAudio.pause();
     currentAudio = null;
   }
 
   const context = await ensureAudioContext();
+  assertPractice(runId);
   const audioUrl = URL.createObjectURL(audioBlob);
   const audio = new Audio(audioUrl);
   const source = context.createMediaElementSource(audio);
@@ -701,36 +748,42 @@ async function playAudioBlob(audioBlob, options = {}) {
   analyser.connect(context.destination);
 
   return new Promise((resolve, reject) => {
+    let settled = false;
+    const cleanup = () => {
+      if (settled) return false;
+      settled = true;
+      signal.removeEventListener("abort", abort);
+      audio.pause();
+      URL.revokeObjectURL(audioUrl);
+      source.disconnect();
+      analyser.disconnect();
+      if (currentAudio === audio) currentAudio = null;
+      if (runId === activityRunId) stopLiveVoice();
+      return true;
+    };
+    const abort = () => {
+      if (cleanup()) reject(new DOMException("Playback canceled", "AbortError"));
+    };
+    signal.addEventListener("abort", abort, { once: true });
     audio.onplay = () => {
+      if (signal.aborted || runId !== activityRunId) return abort();
       setStatus("playing Azure TTS");
       drawLiveVoice(analyser);
       options.onPlaybackStart?.();
     };
     audio.onended = () => {
-      URL.revokeObjectURL(audioUrl);
-      source.disconnect();
-      analyser.disconnect();
-      currentAudio = null;
-      stopLiveVoice();
+      if (!cleanup()) return;
       setStatus("idle");
       resolve();
     };
     audio.onerror = () => {
-      URL.revokeObjectURL(audioUrl);
-      source.disconnect();
-      analyser.disconnect();
-      currentAudio = null;
-      stopLiveVoice();
+      if (!cleanup()) return;
       setStatus("playback failed");
       reject(new Error("Voice audio playback failed"));
     };
 
     audio.play().catch((error) => {
-      URL.revokeObjectURL(audioUrl);
-      source.disconnect();
-      analyser.disconnect();
-      currentAudio = null;
-      stopLiveVoice();
+      if (!cleanup()) return;
       setStatus("playback blocked");
       reject(error);
     });
@@ -738,22 +791,25 @@ async function playAudioBlob(audioBlob, options = {}) {
 }
 
 async function playArthurLine(lineId, variables = {}, options = {}) {
+  const runId = activityRunId;
   try {
     const audio = await fetchDialogueAudio(lineId, variables);
+    assertPractice(runId);
     setSubtitle(audio.text);
     await playAudioBlob(audio.blob, {
       onPlaybackStart: () => options.onPlaybackStart?.(audio.text)
     });
   } catch (error) {
-    console.warn(error);
-    setSubtitle(error instanceof Error ? error.message : String(error));
-    setStatus("fallback animation");
-    await arthurSpeaks(1500);
+    if (error.name === "AbortError") throw error;
+    assertPractice(runId);
+    throw new Error("The voice instructions are unavailable. Please try again.");
   }
 }
 
 async function playTokenClip(token, subtitleText = "", options = {}) {
+  const runId = activityRunId;
   const clip = await fetchTokenClipAudio(token);
+  assertPractice(runId);
   setSubtitle(subtitleText || clip.text);
   await playAudioBlob(clip.blob, {
     playbackRate: TOKEN_PLAYBACK_RATE,
@@ -763,7 +819,9 @@ async function playTokenClip(token, subtitleText = "", options = {}) {
 }
 
 async function playReplacementClip(token, subtitleText = "", options = {}) {
+  const runId = activityRunId;
   const clip = await fetchReplacementClipAudio(token);
+  assertPractice(runId);
   setSubtitle(subtitleText || clip.text);
   await playAudioBlob(clip.blob, {
     playbackRate: TOKEN_PLAYBACK_RATE,
@@ -776,7 +834,7 @@ async function playTokenSound(token) {
   try {
     await playTokenClip(token);
   } catch (error) {
-    console.warn(error);
+    if (error.name === "AbortError") throw error;
     await playArthurLine("token_sound", tokenVariables(token));
   }
 }
@@ -1009,11 +1067,19 @@ function updateExerciseUrl() {
 
 function resetActivitySelection() {
   activityRunId += 1;
+  activityController.abort();
+  activityController = new AbortController();
   cancelSpeechCapture();
   cancelActiveDrag();
+  slidersUnlocked = false;
+  void finishAttempt("abandoned");
+  if (practiceChildId !== window.ParentAccount?.childId) {
+    practiceChildId = "";
+    practiceSessionId = null;
+  }
   updateExerciseUrl();
-  setSubtitle("Press Start.");
-  startButton.disabled = false;
+  setSubtitle(window.ParentAccount?.gateMessage || "Practice is locked.");
+  startButton.disabled = !window.ParentAccount?.ready || !currentCatalogSelection();
 
   if (currentAudio) {
     currentAudio.pause();
@@ -1049,13 +1115,13 @@ async function initializeActivityPicker() {
     populateActivitySelectors(selectionFromUrl());
     resetActivitySelection();
   } catch (error) {
-    console.error(error);
     setSubtitle(error instanceof Error ? error.message : String(error));
     setStatus("activity catalog unavailable");
   }
 }
 
 async function loadCurrentActivity() {
+  const runId = activityRunId;
   const selection = currentCatalogSelection();
   if (!selection) {
     throw new Error("Select an activity line first.");
@@ -1073,13 +1139,15 @@ async function loadCurrentActivity() {
     params.set("sublevel", selection.sublevel);
   }
 
-  const response = await fetch(`${API_BASE}/api/activities/current?${params}`);
+  const response = await practiceFetch(`${API_BASE}/api/activities/current?${params}`);
   if (!response.ok) {
     const payload = await response.json().catch(() => ({}));
     throw new Error(payload.detail || `Activity load failed: ${response.status}`);
   }
 
-  currentActivity = normalizeActivity(await response.json());
+  const activity = await response.json();
+  assertPractice(runId);
+  currentActivity = normalizeActivity(activity);
 }
 
 function tokenElements() {
@@ -1325,7 +1393,7 @@ async function completeToken(token, maxY) {
   updateActiveToken();
 
   if (tokenIndex >= currentActivity.tokens.length) {
-    void finishActivity();
+    void finishActivity().catch(handlePracticeError);
   }
 }
 
@@ -1488,11 +1556,13 @@ async function demoTokenSound(index) {
 }
 
 async function demoAllTokenSounds() {
+  const runId = activityRunId;
   for (let index = 0; index < currentActivity.tokens.length; index += 1) {
+    assertPractice(runId);
     await demoTokenSound(index);
     await wait(180);
   }
-
+  assertPractice(runId);
   slidersUnlocked = true;
   tokenIndex = 0;
   updateActiveToken();
@@ -1508,7 +1578,7 @@ async function playActivityDone() {
       await playArthurLine("very_good");
       return;
     } catch (error) {
-      console.warn(error);
+      if (error.name === "AbortError") throw error;
     }
   }
 
@@ -1547,21 +1617,32 @@ async function finishActivity() {
     return;
   }
 
-  if (finalCheck.correct) {
+  if (finalCheck.error) {
+    setSubtitle("The microphone or assessment was unavailable. This attempt is not counted as an incorrect answer. Press Start to try again.");
+    startButton.disabled = !window.ParentAccount?.ready;
+    return;
+  }
+  practiceAttemptId = null;
+  guestAttemptActive = false;
+  void window.ParentAccount.refreshProgress();
+
+  if (!finalCheck.speechDetected) {
+    setSubtitle("No speech was detected. Press Start to try again. This is not counted as an incorrect answer.");
+  } else if (finalCheck.correct) {
     await playActivityDone();
   } else {
     await playArthurLine("answer_correction", {
       ...activityVariables(),
-      heard: finalCheck.recognizedText || "nothing"
+      heard: ""
     });
   }
 
-  startButton.disabled = false;
+  startButton.disabled = !window.ParentAccount?.ready;
 }
 
 async function startActivity() {
-  activityRunId += 1;
-  cancelSpeechCapture();
+  if (!window.ParentAccount?.ready || !currentCatalogSelection() || startButton.disabled) return;
+  resetActivitySelection();
   const runId = activityRunId;
   startButton.disabled = true;
   setSubtitle("Loading activity...");
@@ -1569,11 +1650,13 @@ async function startActivity() {
 
   try {
     await loadCurrentActivity();
+    assertPractice(runId);
+    await beginAttempt(runId);
   } catch (error) {
-    console.error(error);
+    if (error.name === "AbortError" || runId !== activityRunId) return;
     setSubtitle(error instanceof Error ? error.message : String(error));
     setStatus("activity unavailable");
-    startButton.disabled = false;
+    startButton.disabled = !window.ParentAccount?.ready;
     return;
   }
 
@@ -1589,7 +1672,7 @@ async function startActivity() {
     return;
   }
 
-  await listenForWindow({
+  const initialCheck = await listenForWindow({
     label: "initial word",
     expected: currentActivity.word,
     mode: "presence",
@@ -1597,6 +1680,21 @@ async function startActivity() {
   });
 
   if (runId !== activityRunId) {
+    return;
+  }
+
+  if (initialCheck.error) {
+    setSubtitle("The microphone or assessment was unavailable. Press Start to try again. No incorrect answer was recorded.");
+    startButton.disabled = !window.ParentAccount?.ready;
+    return;
+  }
+
+  if (!initialCheck.speechDetected) {
+    practiceAttemptId = null;
+    guestAttemptActive = false;
+    void window.ParentAccount.refreshProgress();
+    setSubtitle("No speech was detected. Press Start to try again. This is not counted as an incorrect answer.");
+    startButton.disabled = !window.ParentAccount?.ready;
     return;
   }
 
@@ -1616,7 +1714,13 @@ async function startActivity() {
   await demoAllTokenSounds();
 }
 
-startButton.addEventListener("click", startActivity);
+function handlePracticeError(error) {
+  if (error.name === "AbortError") return;
+  resetActivitySelection();
+  setSubtitle("Practice could not finish. Please try again.");
+}
+startButton.addEventListener("click", () => void startActivity().catch(handlePracticeError));
+window.addEventListener("parent-account-change", resetActivitySelection);
 levelSelect.addEventListener("change", () => {
   populateSublevelOptions();
   populateSectionOptions();
@@ -1646,7 +1750,7 @@ window.addEventListener("resize", scheduleTokenAlignment);
 window.addEventListener("orientationchange", scheduleTokenAlignment);
 window.addEventListener("pagehide", resetActivitySelection);
 document.addEventListener("visibilitychange", () => {
-  if (document.hidden && activeSpeechCapture) {
+  if (document.hidden) {
     resetActivitySelection();
   }
 });

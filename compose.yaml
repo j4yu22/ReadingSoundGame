@@ -1,3 +1,27 @@
+x-account-environment: &account-environment
+  ACCOUNTS_ENABLED: ${ACCOUNTS_ENABLED:-false}
+  ACCOUNT_REGISTRATION_OPEN: ${ACCOUNT_REGISTRATION_OPEN:-false}
+  CHILD_DATA_COLLECTION_ENABLED: ${CHILD_DATA_COLLECTION_ENABLED:-false}
+  PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:-http://localhost:8080}
+  SESSION_SECRET: ${SESSION_SECRET:-}
+  ALLOW_INSECURE_LOCALHOST: ${ALLOW_INSECURE_LOCALHOST:-false}
+  DATABASE_URL: ${DATABASE_URL:-}
+  DATABASE_IAM_AUTH: ${DATABASE_IAM_AUTH:-false}
+  DATABASE_SSL_ROOT_CERT: ${DATABASE_SSL_ROOT_CERT:-/app/certs/rds-global-bundle.pem}
+  AWS_REGION: ${AWS_REGION:-us-west-2}
+  COGNITO_USER_POOL_ID: ${COGNITO_USER_POOL_ID:-}
+  COGNITO_CLIENT_ID: ${COGNITO_CLIENT_ID:-}
+  COGNITO_CLIENT_SECRET: ${COGNITO_CLIENT_SECRET:-}
+  COGNITO_DOMAIN: ${COGNITO_DOMAIN:-}
+  COGNITO_REDIRECT_URI: ${COGNITO_REDIRECT_URI:-}
+  PRIVACY_CONTACT: ${PRIVACY_CONTACT:-gina_underwood@yahoo.com,jay.e.underwood@gmail.com}
+  PRIVACY_NOTICE_VERSION: ${PRIVACY_NOTICE_VERSION:-draft-2026-10-03}
+  PRIVACY_NOTIFICATION_EMAILS: ${PRIVACY_NOTIFICATION_EMAILS:-gina_underwood@yahoo.com,jay.e.underwood@gmail.com}
+  PRIVACY_NOTIFICATION_FROM: ${PRIVACY_NOTIFICATION_FROM:-}
+  PROGRESS_RETENTION_DAYS: ${PROGRESS_RETENTION_DAYS:-90}
+  DELETION_LEDGER_DAYS: ${DELETION_LEDGER_DAYS:-45}
+  BACKUP_MAX_RETENTION_DAYS: ${BACKUP_MAX_RETENTION_DAYS:-35}
+
 services:
   app:
     build:
@@ -5,8 +29,9 @@ services:
     image: reading-sound-game:local
     restart: unless-stopped
     environment:
-      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:?Set AZURE_SPEECH_KEY}
-      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:?Set AZURE_SPEECH_REGION}
+      <<: *account-environment
+      AZURE_SPEECH_KEY: ${AZURE_SPEECH_KEY:-}
+      AZURE_SPEECH_REGION: ${AZURE_SPEECH_REGION:-}
       AZURE_SPEECH_VOICE: ${AZURE_SPEECH_VOICE:-en-US-AvaNeural}
       AZURE_SPEECH_FORMAT: ${AZURE_SPEECH_FORMAT:-audio-24khz-48kbitrate-mono-mp3}
       AZURE_STT_LANGUAGE: ${AZURE_STT_LANGUAGE:-en-US}
@@ -15,6 +40,13 @@ services:
       - "8080"
     volumes:
       - api_cache:/app/src/api/.cache
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"
     healthcheck:
       test:
         [
@@ -27,6 +59,40 @@ services:
       timeout: 10s
       retries: 3
       start_period: 60s
+
+  privacy-worker:
+    profiles: [accounts]
+    image: reading-sound-game:local
+    restart: unless-stopped
+    environment: *account-environment
+    command:
+      - /bin/sh
+      - -c
+      - "while true; do .venv/bin/python -m app.account_cli worker || echo 'Privacy worker failed; retry pending'; sleep 60; done"
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"
+
+  privacy-retention:
+    profiles: [accounts]
+    image: reading-sound-game:local
+    restart: unless-stopped
+    environment: *account-environment
+    command:
+      - /bin/sh
+      - -c
+      - "while true; do .venv/bin/python -m app.account_cli retention || echo 'Retention sweep failed; operator review needed'; sleep 86400; done"
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"
 
   caddy:
     image: caddy:2-alpine
@@ -44,6 +110,11 @@ services:
       - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
       - caddy_config:/config
+    logging:
+      driver: local
+      options:
+        max-size: "5m"
+        max-file: "2"
 
 volumes:
   api_cache:

@@ -1,0 +1,11 @@
+aws_region              = "us-west-2"
+environment             = "staging"
+vpc_id                  = "vpc-REPLACE"
+private_db_subnet_ids   = ["subnet-REPLACE-A", "subnet-REPLACE-B"]
+app_security_group_id   = "sg-REPLACE"
+app_iam_role_name       = "reading-sound-game-ec2-role"
+migrator_iam_role_name  = "reading-sound-game-migrations"
+site_origin             = "https://staging.example.com"
+cognito_domain_prefix   = "replace-with-unique-parent-login-name"
+parent_signup_enabled   = false
+deletion_protection     = true

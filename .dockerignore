@@ -2,6 +2,12 @@
 .gitignore
 .env
 *.env
+*.tfstate
+*.tfstate.*
+*.tfvars
+**/.terraform/
+*.db
+*.sqlite*
 __pycache__/
 *.py[cod]
 .pytest_cache/
@@ -11,6 +17,7 @@ __pycache__/
 src/api/.env
 src/api/.venv/
 src/api/.cache/
+src/api/tests/
 
 test/
 plan/

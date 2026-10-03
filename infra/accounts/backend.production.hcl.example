@@ -1,0 +1,7 @@
+# Verified encrypted, versioned, public-blocked bucket in us-west-2.
+# This key is separate from the existing website infrastructure state.
+bucket       = "reading-sound-game-tfstate-029099142578-1783030773"
+key          = "reading-sound-game/accounts/production.tfstate"
+region       = "us-west-2"
+encrypt      = true
+use_lockfile = true

@@ -323,6 +323,8 @@ def synthesize_token_clip(
     target_word: str,
     occurrence: int = 0,
     source_phrase: str = "",
+    *,
+    cache: bool = True,
 ) -> bytes:
     if not source_tokens and not source_phrase.strip():
         raise DialogueError("No source phrase was provided for clipping.")
@@ -332,13 +334,16 @@ def synthesize_token_clip(
         if source_phrase.strip()
         else build_clip_ssml(source_tokens)
     )
-    cache_path = cache_path_for_clip(ssml, target_word, occurrence)
+    # Only trusted curriculum may be cached. Browser-supplied phrases are
+    # transient and must not create files outside account deletion controls.
+    cache_path = cache_path_for_clip(ssml, target_word, occurrence) if cache else None
 
-    if cache_path.is_file():
+    if cache_path is not None and cache_path.is_file():
         return cache_path.read_bytes()
 
     wav_audio, boundaries = synthesize_wav_with_boundaries(ssml)
     boundary, next_boundary = find_word_boundary_span(boundaries, target_word, occurrence)
     clip = clip_wav_audio(wav_audio, boundary, next_boundary)
-    cache_path.write_bytes(clip)
+    if cache_path is not None:
+        cache_path.write_bytes(clip)
     return clip
