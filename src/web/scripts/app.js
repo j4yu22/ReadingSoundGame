@@ -12,12 +12,15 @@ const exerciseSelect = document.getElementById("exerciseSelect");
 const lineSelect = document.getElementById("lineSelect");
 const volumeSlider = document.getElementById("volumeSlider");
 const volumeValue = document.getElementById("volumeValue");
+const activitySettings = document.getElementById("activitySettings");
+const activitySummary = document.getElementById("activitySummary");
+const desktopLayout = window.matchMedia("(min-width: 960px)");
 
 const LIVE_SERVER_PORTS = new Set(["5500", "5501"]);
 const API_BASE = LIVE_SERVER_PORTS.has(window.location.port)
   ? "http://127.0.0.1:5178"
   : "";
-const APP_VERSION = "exercise-catalog-20260722";
+const APP_VERSION = "responsive-layout-20261003";
 const TOKEN_PLAYBACK_RATE = 0.5;
 const LISTEN_SAMPLE_RATE = 16000;
 const WORD_LISTEN_MS = 2200;
@@ -72,6 +75,7 @@ let currentVolume = Number(volumeSlider.value);
 let activityRunId = 0;
 let micStream = null;
 let activeTokenCapture = null;
+let tokenLayoutFrame = null;
 
 console.info("[Arthur app]", {
   version: APP_VERSION,
@@ -928,6 +932,10 @@ function updateExerciseUrl() {
     return;
   }
 
+  if (activitySummary) {
+    activitySummary.textContent = `Level ${selection.level} · Exercise ${selection.exercise} · Line ${selection.line}`;
+  }
+
   const url = new URL(window.location.href);
   url.searchParams.set("level", selection.level);
   if (selection.sublevel === NO_SUBLEVEL_VALUE) {
@@ -944,6 +952,7 @@ function updateExerciseUrl() {
 
 function resetActivitySelection() {
   activityRunId += 1;
+  cancelActiveDrag();
   updateExerciseUrl();
   setSubtitle("Press Start.");
   startButton.disabled = false;
@@ -1024,6 +1033,7 @@ function targetElements() {
 }
 
 function buildActivity(isInteractive = true) {
+  cancelActiveDrag();
   activityStage.classList.remove("tokens-visible");
   tokenRow.innerHTML = "";
   dropRow.innerHTML = "";
@@ -1038,11 +1048,13 @@ function buildActivity(isInteractive = true) {
     token.dataset.sound = currentActivity.tokens[index].sound || "";
     token.dataset.tokenId = currentActivity.tokens[index].id || "";
     token.dataset.action = currentActivity.tokens[index].action || "none";
-    token.setAttribute("aria-label", `Sound slider ${index + 1}`);
+    token.setAttribute("aria-label", `Sound token ${index + 1}. Drag down, or press Enter or Space.`);
     token.addEventListener("pointerdown", handlePointerDown);
     token.addEventListener("pointermove", handlePointerMove);
     token.addEventListener("pointerup", handlePointerUp);
-    token.addEventListener("pointercancel", handlePointerUp);
+    token.addEventListener("pointercancel", handlePointerCancel);
+    token.addEventListener("lostpointercapture", handlePointerCancel);
+    token.addEventListener("keydown", handleTokenKeyDown);
     tokenRow.appendChild(token);
 
     const target = document.createElement("div");
@@ -1081,12 +1093,8 @@ function updateActiveToken() {
   });
 }
 
-function getCurrentTarget() {
-  return dropRow.querySelector(`[data-index="${tokenIndex}"]`);
-}
-
 function getTokenMaxY(token) {
-  const target = getCurrentTarget();
+  const target = dropRow.querySelector(`[data-index="${token.dataset.index}"]`);
 
   if (!target) {
     return 0;
@@ -1094,7 +1102,12 @@ function getTokenMaxY(token) {
 
   const tokenRect = token.getBoundingClientRect();
   const targetRect = target.getBoundingClientRect();
-  return targetRect.top + targetRect.height / 2 - (tokenRect.top + tokenRect.height / 2);
+  const transform = window.getComputedStyle(token).transform;
+  const translatedY = transform === "none" ? 0 : new DOMMatrixReadOnly(transform).m42;
+  // Remove the rendered translation so this remains correct during transitions
+  // and when a completed token is realigned after the layout changes.
+  const restingCenterY = tokenRect.top + tokenRect.height / 2 - translatedY;
+  return Math.max(0, targetRect.top + targetRect.height / 2 - restingCenterY);
 }
 
 function setTokenY(token, y) {
@@ -1104,7 +1117,7 @@ function setTokenY(token, y) {
 function handlePointerDown(event) {
   const token = event.currentTarget;
 
-  if (token.disabled || Number(token.dataset.index) !== tokenIndex) {
+  if (activeToken || event.button !== 0 || token.disabled || !slidersUnlocked || Number(token.dataset.index) !== tokenIndex) {
     return;
   }
 
@@ -1116,6 +1129,7 @@ function handlePointerDown(event) {
   activeToken.dataset.startY = String(event.clientY);
   activeToken.dataset.maxY = String(getTokenMaxY(activeToken));
   activeToken.dataset.currentY = activeToken.dataset.currentY || "0";
+  activeToken.dataset.startOffset = activeToken.dataset.currentY;
   beginTokenSpeechCapture(tokenIndex, token.dataset.sound || "");
 }
 
@@ -1125,7 +1139,7 @@ function handlePointerMove(event) {
   }
 
   const startY = Number(activeToken.dataset.startY);
-  const startOffset = Number(activeToken.dataset.currentY || "0");
+  const startOffset = Number(activeToken.dataset.startOffset || "0");
   const maxY = Number(activeToken.dataset.maxY || "0");
   const y = Math.min(maxY, Math.max(0, startOffset + event.clientY - startY));
 
@@ -1138,30 +1152,112 @@ function handlePointerUp(event) {
     return;
   }
 
+  handlePointerMove(event);
   const token = activeToken;
   const y = Number(token.dataset.currentY || "0");
   const maxY = Number(token.dataset.maxY || "0");
   const reachedBottom = maxY > 0 && y >= maxY * 0.92;
 
-  token.classList.remove("is-dragging", "is-user-active");
-  activeToken = null;
-  activePointerId = null;
-
   if (!reachedBottom) {
-    cancelTokenSpeechCapture(Number(token.dataset.index));
-    token.dataset.currentY = "0";
-    setTokenY(token, 0);
+    cancelActiveDrag();
     return;
   }
 
+  releaseActivePointer();
   void completeToken(token, maxY);
+}
+
+function releaseActivePointer() {
+  const token = activeToken;
+  const pointerId = activePointerId;
+  activeToken = null;
+  activePointerId = null;
+
+  if (!token) {
+    return;
+  }
+
+  token.classList.remove("is-dragging", "is-user-active");
+  if (token.hasPointerCapture(pointerId)) {
+    token.releasePointerCapture(pointerId);
+  }
+}
+
+function cancelActiveDrag() {
+  const token = activeToken;
+  if (!token) {
+    return;
+  }
+
+  releaseActivePointer();
+  cancelTokenSpeechCapture(Number(token.dataset.index));
+  token.dataset.currentY = "0";
+  setTokenY(token, 0);
+}
+
+function handlePointerCancel(event) {
+  if (event.pointerId === activePointerId) {
+    cancelActiveDrag();
+  }
+}
+
+async function handleTokenKeyDown(event) {
+  if (event.key !== "Enter" && event.key !== " ") {
+    return;
+  }
+
+  event.preventDefault();
+  const token = event.currentTarget;
+  if (event.repeat || activeToken || token.disabled || !slidersUnlocked || Number(token.dataset.index) !== tokenIndex) {
+    return;
+  }
+
+  const maxY = getTokenMaxY(token);
+  if (maxY <= 0) {
+    return;
+  }
+
+  beginTokenSpeechCapture(tokenIndex, token.dataset.sound || "");
+  await completeToken(token, maxY);
+  tokenElements()[tokenIndex]?.focus({ preventScroll: true });
+}
+
+function scheduleTokenAlignment() {
+  if (tokenLayoutFrame !== null) {
+    return;
+  }
+
+  tokenLayoutFrame = window.requestAnimationFrame(() => {
+    tokenLayoutFrame = null;
+    cancelActiveDrag();
+    tokenElements().forEach((token) => {
+      if (token.classList.contains("is-complete")) {
+        const maxY = getTokenMaxY(token);
+        token.dataset.currentY = String(maxY);
+        setTokenY(token, maxY);
+      }
+    });
+  });
+}
+
+function updateSettingsLayout() {
+  if (activitySettings) {
+    activitySettings.open = desktopLayout.matches;
+  }
+  scheduleTokenAlignment();
 }
 
 async function completeToken(token, maxY) {
   const completedIndex = Number(token.dataset.index);
+  const runId = activityRunId;
 
   token.disabled = true;
   await finishTokenSpeechCapture(completedIndex, token.dataset.sound || "");
+  if (runId !== activityRunId || !token.isConnected) {
+    return;
+  }
+
+  maxY = getTokenMaxY(token);
   token.classList.add("is-complete");
   token.classList.remove("is-ready", "is-user-active");
   token.dataset.currentY = String(maxY);
@@ -1486,7 +1582,16 @@ exerciseSelect.addEventListener("change", () => {
 });
 lineSelect.addEventListener("change", resetActivitySelection);
 volumeSlider.addEventListener("input", updateVolumeLabel);
+desktopLayout.addEventListener("change", updateSettingsLayout);
+window.addEventListener("resize", scheduleTokenAlignment);
+window.addEventListener("orientationchange", scheduleTokenAlignment);
 
+if (typeof ResizeObserver !== "undefined") {
+  const tokenLayoutObserver = new ResizeObserver(scheduleTokenAlignment);
+  [activityStage, tokenRow, dropRow].forEach((element) => tokenLayoutObserver.observe(element));
+}
+
+updateSettingsLayout();
 setVoiceSpeaking(false);
 void initializeActivityPicker();
 updateVolumeLabel();
