@@ -1,5 +1,6 @@
 #!/bin/bash
-set -euxo pipefail
+# Do not enable shell tracing: this script retrieves credentials.
+set -euo pipefail
 
 APP_DIR="${app_dir}"
 AWS_REGION="${aws_region}"
@@ -93,6 +94,7 @@ if git rev-parse --verify "origin/$${REPOSITORY_REF}" >/dev/null 2>&1; then
   git reset --hard "origin/$${REPOSITORY_REF}"
 fi
 
+umask 077
 cat > "$${APP_DIR}/.env" <<ENV
 AZURE_SPEECH_KEY=$${AZURE_SPEECH_KEY}
 AZURE_SPEECH_REGION=$${AZURE_SPEECH_REGION}
@@ -105,46 +107,13 @@ ACME_EMAIL=$${ACME_EMAIL}
 HTTP_PORT=80
 HTTPS_PORT=443
 ENV
+chmod 600 "$${APP_DIR}/.env"
 
 docker compose down --remove-orphans || true
 docker compose up -d --build
 
-cat > /usr/local/bin/reading-sound-game-update <<SCRIPT
-#!/bin/bash
-set -euo pipefail
-
-APP_DIR="$${APP_DIR}"
-REPOSITORY_REF="$${REPOSITORY_REF}"
-
-cd "\$${APP_DIR}"
-git fetch origin "\$${REPOSITORY_REF}" --prune
-
-current_commit="\$(git rev-parse HEAD)"
-
-if git rev-parse --verify "origin/\$${REPOSITORY_REF}" >/dev/null 2>&1; then
-  target_commit="\$(git rev-parse "origin/\$${REPOSITORY_REF}")"
-
-  if [ "\$${current_commit}" = "\$${target_commit}" ]; then
-    echo "Already on latest commit \$${current_commit}."
-    exit 0
-  fi
-
-  git checkout "\$${REPOSITORY_REF}"
-  git reset --hard "\$${target_commit}"
-else
-  git checkout "\$${REPOSITORY_REF}"
-  target_commit="\$(git rev-parse HEAD)"
-
-  if [ "\$${current_commit}" = "\$${target_commit}" ]; then
-    echo "Already on requested ref \$${current_commit}."
-    exit 0
-  fi
-fi
-
-docker compose up -d --build
-docker image prune -f
-SCRIPT
-chmod +x /usr/local/bin/reading-sound-game-update
+install -o root -g root -m 0755 \
+  "$${APP_DIR}/deploy/update-from-git.sh" /usr/local/bin/reading-sound-game-update
 
 cat > /etc/systemd/system/reading-sound-game-update.service <<SERVICE
 [Unit]
@@ -155,7 +124,7 @@ After=network-online.target docker.service
 [Service]
 Type=oneshot
 WorkingDirectory=$${APP_DIR}
-ExecStart=/usr/local/bin/reading-sound-game-update
+ExecStart=/usr/local/bin/reading-sound-game-update $${APP_DIR} $${REPOSITORY_REF}
 SERVICE
 
 if [ "$${AUTO_UPDATE_INTERVAL}" != "0" ]; then

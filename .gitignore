@@ -15,7 +15,14 @@ test/output/
 **/.terraform/
 *.tfstate
 *.tfstate.*
+*.tfplan
 *.tfvars
 !*.tfvars.example
 crash.log
 crash.*.log
+
+# Account exports and database backups must never enter source control.
+reading-sound-games-*data*.json
+privacy-ledger*.json
+*.dump
+*.sql.gz

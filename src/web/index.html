@@ -6,7 +6,7 @@
   <meta name="theme-color" content="#287a67" />
   <meta name="description" content="Listen, move sound tokens, and discover words with Reading Sound Games." />
   <title>Reading Sound Games</title>
-  <link rel="stylesheet" href="styles/main.css?v=responsive-layout-20261003" />
+  <link rel="stylesheet" href="styles/main.css?v=guest-practice-20261003" />
 </head>
 <body>
   <header class="topbar">
@@ -14,7 +14,12 @@
       <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i></span>
       <span>Reading Sound Games<small>Listen. Play. Discover.</small></span>
     </div>
-    <span class="practice-badge">One sound at a time</span>
+    <div id="accountAccess" class="account-access" role="group" aria-label="Account access">
+      <button id="headerSignIn" class="header-sign-in" type="button" aria-disabled="true" aria-describedby="accountSetupTooltip">Sign in</button>
+      <button id="headerSignUp" class="header-sign-up" type="button" aria-disabled="true" aria-describedby="accountSetupTooltip">Sign up</button>
+      <span id="accountSetupTooltip" class="account-setup-tooltip" role="tooltip">Account setup is not complete yet.</span>
+    </div>
+    <a id="parentAccountLink" class="parent-link" href="#parentAccount" hidden>Parent account</a>
   </header>
 
   <main class="game" aria-label="Reading Sound Game">
@@ -23,6 +28,54 @@
       <h1>Small sounds. Big discoveries.</h1>
       <p>Listen closely, move the tokens, and see what a word can become.</p>
     </header>
+
+    <section id="parentAccount" class="parent-card" aria-labelledby="accountTitle" hidden>
+      <div class="parent-card-heading">
+        <div><p class="eyebrow">For parents &amp; guardians</p><h2 id="accountTitle">A little practice. Their own progress.</h2></div>
+        <span id="accountBadge" class="account-badge">Checking access</span>
+      </div>
+      <p id="accountStatus" role="status" aria-live="polite">Checking parent account availability. Practice and the microphone are locked.</p>
+      <a id="goToPractice" class="account-button" href="#practiceCard" hidden>Go to practice ↓</a>
+      <p id="accountError" class="account-error" role="alert" hidden></p>
+      <div id="signedOutPanel" hidden>
+        <p>An adult manages the account and creates a child’s profile after parental consent is verified. Children should not create an account here.</p>
+        <a id="parentLogin" class="account-button" href="/api/auth/login" hidden>Parent sign in / sign up</a>
+      </div>
+      <div id="signedInPanel" hidden>
+        <div class="account-identity"><span id="parentEmail"></span><button id="logoutButton" type="button" class="text-button">Sign out</button></div>
+        <a id="parentReauthenticate" class="account-button secondary" href="/api/auth/login" hidden>Sign in again to verify access</a>
+        <section id="consentPanel" class="consent-notice" aria-labelledby="consentTitle" hidden>
+          <h3 id="consentTitle">Before your child uses the microphone</h3>
+          <p>We use a nickname and practice results to show progress. During speaking turns, audio goes to our server and Microsoft Azure Speech for assessment. We do not save recordings or recognized transcripts in your child’s practice history. Amazon Web Services provides accounts and storage.</p>
+          <p id="consentRetention"></p>
+          <p>You can review, download, and request deletion of your child’s data, or withdraw consent below. Read the <a href="privacy.html">parent privacy notice</a> and its contact details before proceeding.</p>
+          <form id="consentForm">
+            <label class="checkbox-label"><input id="adultConfirmed" type="checkbox" required /><span>I am an adult parent or legal guardian requesting the parental verification process.</span></label>
+            <p class="field-help">This request and checkbox do not verify parental consent. Practice remains locked until verification is complete and child collection is enabled.</p>
+            <button class="account-button" type="submit">Request parental verification</button>
+          </form>
+        </section>
+        <section id="childPanel" class="child-panel" aria-labelledby="childrenTitle" hidden>
+          <div class="child-picker"><label for="childSelect"><strong id="childrenTitle">Who is practicing?</strong></label><select id="childSelect"><option value="">Choose a child</option></select></div>
+          <form id="childForm" class="child-form">
+            <label for="childNickname">Add a child’s nickname <small>Use a nickname, not a full name.</small></label>
+            <div class="form-inline"><input id="childNickname" name="nickname" maxlength="40" autocomplete="off" required /><button class="account-button secondary" type="submit">Add child</button></div>
+          </form>
+        </section>
+        <section id="progressPanel" class="progress-panel" aria-labelledby="progressTitle" hidden>
+          <div class="progress-heading"><h3 id="progressTitle">Practice progress</h3><button id="refreshProgress" class="text-button" type="button">Refresh progress</button></div>
+          <div id="progressSummary" class="progress-summary"></div>
+          <p id="progressStatus" class="field-help" role="status"></p>
+          <div id="progressTableWrap" class="progress-table-wrap" hidden><table><caption class="visually-hidden">Recent practice attempts</caption><thead><tr><th scope="col">When</th><th scope="col">Activity</th><th scope="col">Result</th></tr></thead><tbody id="progressRows"></tbody></table></div>
+          <button id="deleteChildButton" class="text-button danger-text" type="button">Delete this child’s data</button>
+        </section>
+        <details class="parent-controls"><summary>Manage privacy &amp; account</summary><div>
+          <p>Downloads contain private family information. Keep them somewhere safe, especially on a shared device.</p>
+          <div class="account-actions"><button id="exportButton" class="account-button secondary" type="button">Download my family’s data</button><button id="withdrawButton" class="text-button danger-text" type="button">Withdraw consent &amp; delete child data</button><button id="deleteAccountButton" class="text-button danger-text" type="button">Delete parent account &amp; all data</button></div>
+        </div></details>
+      </div>
+      <p class="privacy-footer"><a href="privacy.html">Parent privacy notice</a><span id="privacyContact"></span></p>
+    </section>
 
     <details id="activitySettings" class="activity-settings" open>
       <summary>
@@ -66,10 +119,10 @@
       </div>
     </details>
 
-    <section class="practice-card" aria-labelledby="practiceTitle">
+    <section id="practiceCard" class="practice-card" aria-labelledby="practiceTitle">
       <header class="practice-toolbar">
         <h2 id="practiceTitle">Listen &amp; play</h2>
-        <button id="startButton" class="start-button" type="button">Start</button>
+        <button id="startButton" class="start-button" type="button" disabled>Start</button>
       </header>
 
       <section class="voice-panel" aria-label="Voice instructions">
@@ -80,7 +133,7 @@
             <path class="voice-path" d="M20 60 H150 L174 18 L220 100 L270 32 L308 94 L348 16 L386 84 L404 52 H500" />
           </svg>
         </div>
-        <div id="subtitleBox" class="subtitle-box" aria-live="polite" aria-atomic="true">Press Start.</div>
+        <div id="subtitleBox" class="subtitle-box" aria-live="polite" aria-atomic="true">Loading your activities…</div>
         <p id="statusText" class="status-text" role="status">Voice: idle</p>
       </section>
 
@@ -97,6 +150,10 @@
     </section>
   </main>
 
-  <script src="scripts/app.js?v=microphone-windows-20261003"></script>
+  <dialog id="deleteDialog" class="delete-dialog" aria-labelledby="deleteTitle" aria-describedby="deleteDescription">
+    <form id="deleteForm"><h2 id="deleteTitle">Confirm deletion</h2><p id="deleteDescription"></p><p>Access stops when the request is accepted. Deletion runs as a tracked job. Existing backups expire separately under the retention policy.</p><label for="deleteConfirmation">Type DELETE to confirm</label><input id="deleteConfirmation" autocomplete="off" pattern="DELETE" required /><p id="deleteError" role="alert"></p><div class="account-actions"><button id="cancelDelete" class="account-button secondary" type="button">Cancel</button><button id="confirmDelete" class="account-button danger" type="submit">Request deletion</button></div></form>
+  </dialog>
+  <script src="scripts/account.js?v=guest-practice-20261003"></script>
+  <script src="scripts/app.js?v=guest-practice-20261003"></script>
 </body>
 </html>

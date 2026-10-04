@@ -7,7 +7,7 @@ Write-Host "Open http://127.0.0.1:5178 after the server starts. Press Ctrl+C to 
 
 $UvCommand = Get-Command uv -ErrorAction SilentlyContinue
 if ($UvCommand) {
-    & $UvCommand.Source run --locked uvicorn app.main:app --host 127.0.0.1 --port 5178 --reload
+    & $UvCommand.Source run --locked uvicorn app.main:app --host 127.0.0.1 --port 5178 --reload --no-access-log
 } else {
     # A pip-installed uv can be available as a Python module before Scripts is on PATH.
     $PythonCommand = Get-Command python -ErrorAction SilentlyContinue
@@ -20,5 +20,5 @@ if ($UvCommand) {
         throw "uv is missing. Run: python -m pip install --user uv, then run this script again."
     }
 
-    & $PythonCommand.Source -m uv run --locked uvicorn app.main:app --host 127.0.0.1 --port 5178 --reload
+    & $PythonCommand.Source -m uv run --locked uvicorn app.main:app --host 127.0.0.1 --port 5178 --reload --no-access-log
 }

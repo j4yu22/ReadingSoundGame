@@ -3,10 +3,11 @@ from __future__ import annotations
 import asyncio
 import json
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, Response
 
 from app.core.config import SHARED_DIR
+from app.core.security import require_practice_parent
 from app.services.activity_breakdown import clip_path_for_id, prepare_activity
 from app.services.activity_service import (
     CATALOG_PATH,
@@ -31,7 +32,7 @@ async def activity_catalog() -> FileResponse:
     )
 
 
-@router.get("/current")
+@router.get("/current", dependencies=[Depends(require_practice_parent)])
 async def current_activity(
     type: str = Query("deletion", pattern="^(deletion|substitution)$"),
     level: str | None = Query(None),
@@ -62,7 +63,7 @@ async def current_activity(
         try:
             return await asyncio.to_thread(prepare_activity, activity, activity_type)
         except DialogueError as exc:
-            raise HTTPException(status_code=400, detail=str(exc)) from exc
+            raise HTTPException(status_code=503, detail="Activity audio is temporarily unavailable.") from None
 
     path = SHARED_DIR / "activities" / f"{type}.json"
 
@@ -78,7 +79,7 @@ async def current_activity(
     try:
         return await asyncio.to_thread(prepare_activity, activities[0], type)
     except DialogueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=503, detail="Activity audio is temporarily unavailable.") from None
 
 
 @router.get("/clips/{clip_id}")

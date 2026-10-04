@@ -45,6 +45,12 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 .brand-mark i:nth-child(2), .brand-mark i:nth-child(4) { height: 22px; }
 .brand-mark i:nth-child(3) { height: 30px; background: var(--gold); }
 .practice-badge { flex-shrink: 0; color: var(--green-dark); font-size: 13px; }
+.account-access { position: relative; display: flex; align-items: center; flex-shrink: 0; gap: 12px; }
+.account-access button { min-height: 44px; padding: 10px 14px; color: #77827d; font-size: 14px; font-weight: 600; white-space: nowrap; cursor: not-allowed; }
+.header-sign-in { border: 0; background: transparent; }
+.header-sign-up { border: 1px solid #cdd5cf; border-radius: 9px; background: #e8ece7; }
+.account-setup-tooltip { position: absolute; z-index: 10; top: calc(100% + 8px); right: 0; width: 230px; max-width: calc(100vw - 32px); padding: 11px 14px; border-radius: 8px; background: var(--text); color: #fff; box-shadow: var(--shadow); font-size: 13px; font-weight: 400; line-height: 1.5; visibility: hidden; opacity: 0; pointer-events: none; }
+.account-access:hover .account-setup-tooltip, .account-access:focus-within .account-setup-tooltip { visibility: visible; opacity: 1; }
 
 .game {
   display: grid;
@@ -181,3 +187,97 @@ button:focus-visible, select:focus-visible, input:focus-visible, summary:focus-v
 }
 @keyframes voiceGlow { from { opacity: .4; } to { opacity: 1; } }
 @keyframes tokenShake { 0%, 100% { left: 0; } 30% { left: -5px; } 65% { left: 5px; } }
+
+/* Parent controls use the same calm palette, with a separate place for privacy. */
+[hidden] { display: none !important; }
+a { color: var(--green-dark); text-underline-offset: .2em; }
+a:focus-visible { outline: 3px solid var(--green-dark); outline-offset: 4px; }
+.parent-link { flex-shrink: 0; font-size: 14px; font-weight: 600; }
+.accounts-available .game { grid-template-areas: "heading" "account" "settings" "practice"; }
+.parent-card { grid-area: account; min-width: 0; padding: 24px; border: 1px solid var(--line); border-radius: 18px; background: var(--surface); box-shadow: var(--shadow); scroll-margin-top: 20px; }
+.parent-card-heading { display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 16px; }
+.parent-card h2 { margin: 7px 0 0; font: 700 25px/1.3 Georgia, "Times New Roman", serif; }
+.parent-card h3 { margin: 0 0 10px; font-size: 18px; }
+.parent-card p { max-width: 850px; line-height: 1.6; color: var(--muted); font-size: 14px; }
+.account-badge { display: inline-block; padding: 7px 11px; border-radius: 20px; background: var(--surface-soft); color: var(--green-dark); font-size: 12px; font-weight: 700; }
+.account-button { display: inline-flex; justify-content: center; align-items: center; min-height: 44px; gap: 8px; padding: 10px 16px; border: 1px solid var(--green); border-radius: 9px; background: var(--green); color: #fff; font-size: 14px; font-weight: 600; text-decoration: none; cursor: pointer; }
+.account-button:hover { background: var(--green-dark); }
+.account-button.secondary { background: #fff; color: var(--green-dark); border-color: #adc6b9; }
+.account-button.secondary:hover { background: var(--surface-soft); }
+.account-button.danger { background: #9e3830; border-color: #9e3830; }
+.account-button:disabled { cursor: wait; opacity: .6; }
+.text-button { min-height: 44px; padding: 8px 0; border: 0; background: transparent; color: var(--green-dark); text-decoration: underline; text-underline-offset: .2em; font-size: 14px; text-align: left; cursor: pointer; }
+.danger-text { color: #933b33; }
+.account-error { padding: 12px 14px; border: 1px solid #e7b8b0; border-radius: 8px; background: #fff1ed; color: #85332d !important; }
+.account-identity { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 12px; border-top: 1px solid var(--line); margin-top: 18px; padding-top: 8px; font-size: 14px; }
+.account-identity span { overflow-wrap: anywhere; }
+.consent-notice { margin-top: 16px; padding: 20px; background: #f4f8f3; border: 1px solid var(--line); border-radius: 12px; }
+.checkbox-label { display: flex; gap: 12px; align-items: flex-start; line-height: 1.6; font-size: 14px; }
+.checkbox-label input { flex: 0 0 20px; width: 20px; height: 20px; margin: 2px 0 0; accent-color: var(--green); }
+.parent-card .field-help { font-size: 12px; line-height: 1.6; }
+.child-panel { display: grid; grid-template-columns: minmax(180px, .7fr) minmax(240px, 1fr); gap: 24px; margin: 16px 0 20px; padding: 20px; border-radius: 12px; background: var(--surface-soft); }
+.child-picker, .child-form { display: grid; align-content: start; gap: 8px; min-width: 0; }
+.child-form label { font-size: 14px; font-weight: 600; }
+.child-form small { display: block; margin-top: 5px; font-size: 12px; color: var(--muted); font-weight: 400; }
+.parent-card input:not([type="checkbox"]), .parent-card select, .delete-dialog input { width: 100%; min-width: 0; min-height: 46px; padding: 10px 12px; border: 1px solid #adc6b9; border-radius: 8px; background: #fff; color: var(--text); font-size: 16px; }
+.form-inline { display: flex; gap: 10px; align-items: start; }
+.form-inline input { flex: 1; }
+.form-inline button { flex-shrink: 0; }
+.progress-panel { padding-top: 8px; }
+.progress-heading { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; }
+.progress-heading h3 { margin: 0; }
+.progress-summary { display: flex; flex-wrap: wrap; gap: 10px; margin: 12px 0; }
+.progress-summary > div { min-width: 105px; padding: 12px 16px; border: 1px solid var(--line); border-radius: 10px; background: #f7f8f3; }
+.progress-summary strong { display: block; color: var(--green-dark); font-size: 26px; font-variant-numeric: tabular-nums; }
+.progress-summary span { display: block; color: var(--muted); margin-top: 4px; font-size: 12px; }
+.progress-table-wrap { max-width: 100%; overflow-x: auto; margin-bottom: 8px; }
+.progress-table-wrap table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
+.progress-table-wrap th, .progress-table-wrap td { padding: 12px 10px; border-bottom: 1px solid var(--line); line-height: 1.5; }
+.progress-table-wrap th { font-weight: 600; color: var(--muted); }
+.parent-controls { border-top: 1px solid var(--line); margin-top: 20px; padding-top: 4px; }
+.parent-controls summary { padding: 14px 0; cursor: pointer; color: var(--green-dark); font-size: 14px; font-weight: 600; }
+.account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 22px; }
+.parent-card .privacy-footer { margin-bottom: 0; font-size: 12px; }
+#practiceCard { scroll-margin-top: 20px; }
+.delete-dialog { width: min(520px, calc(100% - 32px)); max-height: calc(100svh - 40px); padding: 24px; border: 1px solid var(--line); border-radius: 16px; background: var(--surface); color: var(--text); box-shadow: 0 20px 100px rgb(0 0 0 / 24%); }
+.delete-dialog::backdrop { background: rgb(15 35 29 / 55%); }
+.delete-dialog h2 { margin: 0 0 16px; font: 700 26px/1.3 Georgia, "Times New Roman", serif; }
+.delete-dialog p { line-height: 1.65; font-size: 14px; }
+.delete-dialog input { margin-top: 8px; }
+.delete-dialog label { font-size: 14px; font-weight: 600; }
+.delete-dialog #deleteError { color: #933b33; }
+.privacy-page { width: min(820px, 100%); margin: 0 auto; padding: 32px 20px 64px; }
+.privacy-page article { padding: clamp(20px, 4vw, 40px); background: var(--surface); border: 1px solid var(--line); border-radius: 18px; }
+.privacy-page h1 { font: 700 36px/1.2 Georgia, "Times New Roman", serif; }
+.privacy-page h2 { margin-top: 30px; font: 700 23px/1.3 Georgia, "Times New Roman", serif; }
+.privacy-page p, .privacy-page li { line-height: 1.75; font-size: 15px; }
+.privacy-page .review-notice { padding: 16px; border-radius: 10px; background: #fff6e5; border: 1px solid #eddfbd; }
+@media (min-width: 960px) {
+  .accounts-available .game { grid-template-areas: "heading heading" "account account" "practice settings"; }
+}
+@media (max-width: 599px) {
+  .topbar { gap: 12px; }
+  .brand { font-size: 17px; gap: 8px; }
+  .brand small { font-size: 8px; letter-spacing: .1em; }
+  .brand-mark { width: 32px; height: 32px; }
+  .account-access { gap: 4px; }
+  .account-access button { padding: 9px 10px; font-size: 13px; }
+  .parent-link { max-width: 62px; font-size: 12px; line-height: 1.5; }
+  .parent-card { padding: 16px; border-radius: 14px; }
+  .parent-card h2 { font-size: 23px; }
+  .parent-card-heading { gap: 10px; }
+  .consent-notice, .child-panel { padding: 14px; }
+  .child-panel { grid-template-columns: minmax(0, 1fr); gap: 18px; }
+  .form-inline { flex-wrap: wrap; }
+  .form-inline input { flex-basis: 100%; }
+  .progress-summary { gap: 8px; }
+  .progress-summary > div { flex: 1 1 110px; min-width: 0; padding: 12px; }
+  .account-actions { align-items: stretch; flex-direction: column; gap: 8px; }
+  .delete-dialog { padding: 20px; }
+}
+@media (max-width: 379px) {
+  .topbar { gap: 8px; padding-inline: 12px; }
+  .brand { font-size: 16px; }
+  .brand-mark { display: none; }
+  .account-access button { padding-inline: 8px; }
+}
